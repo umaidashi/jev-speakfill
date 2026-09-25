@@ -36,13 +36,14 @@ function stripHint(text: string, fields: Field[]): Chunk {
 }
 
 const DIGITS = /^[\d０-９ ]+$/
+const ENDS_DIGIT = /[\d０-９]$/
 
 // 「090 9876 5432」のように区切って読まれた数字を 1 つに戻す
 function mergeDigits(parts: string[]): string[] {
   const out: string[] = []
   for (const p of parts) {
     const last = out[out.length - 1]
-    if (last !== undefined && DIGITS.test(last) && DIGITS.test(p)) out[out.length - 1] = `${last} ${p}`
+    if (last !== undefined && ENDS_DIGIT.test(last) && DIGITS.test(p)) out[out.length - 1] = `${last} ${p}`
     else out.push(p)
   }
   return out

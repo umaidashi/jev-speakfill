@@ -59,8 +59,8 @@ async function onFinal(text: string) {
     const chunks = segment(text, true, fields)
     if (chunks.length === 0) return
     placements = await route(fields, chunks, filled, ask)
-    const placedChunks = new Set(placements.map((p) => p.chunk))
-    for (const c of chunks) if (!placedChunks.has(c.text)) addLog(`未配置: ${c.text}`, 'none')
+    // 連結された chunk（「山田 太郎」）は部分一致で配置済み扱い（ログ用のゆるい判定）
+    for (const c of chunks) if (!placements.some((p) => p.chunk.includes(c.text))) addLog(`未配置: ${c.text}`, 'none')
   } catch (e) {
     addLog(`エラー: ${(e as Error).message} — 「${text}」は未配置`, 'err')
     return

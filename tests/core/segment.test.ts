@@ -60,3 +60,7 @@ test('終助詞と衝突する名前を削らない（あかね・みさと・�
   expect(segment('あかね、みさと、ちよ', true, fields)).toEqual([{ text: 'あかね' }, { text: 'みさと' }, { text: 'ちよ' }])
   expect(segment('名前はみさと', true, fields)).toEqual([{ text: 'みさと', hint: '氏名' }])
 })
+
+test('ラベル語付きでも空白区切りの数字を 1 chunk に結合する', () => {
+  expect(segment('電話は090 1234 5678', true, fields)).toEqual([{ text: '090 1234 5678', hint: '電話番号' }])
+})
