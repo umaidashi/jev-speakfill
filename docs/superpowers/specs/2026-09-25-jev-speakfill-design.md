@@ -50,7 +50,7 @@ route(fields: Field[], chunks: Chunk[], filled: Record<string,string>, ask: JevA
 - 入力は Web Speech の結果を連結したテキスト。`isFinal=false` のときは何も返さない（配置は確定時のみ）
 - final テキストを以下で chunk に割る: 「、」「。」「,」「 」（空白）、および助詞境界 `〜は` `〜が` `〜で`（直後に値が続く形）
 - chunk 先頭が既知の欄ラベル語（`fields[].label` の前方一致、または「電話」「メール」など同義語の小さな表）+「は/が/で」なら、そのラベル語を剥がしてヒントとして保持: `{ text, hint?: string }`
-- 1文字以下の chunk は捨てる
+- 空の chunk は捨てる（「赤」「革」など 1 文字の値は MVP 入力なので残す）
 - 既知の弱点: 「赤革ルイヴィトン」と区切りなしで話すと 1 chunk になる。MVP は読点（短い間）を入れて話す前提
 - `ponytail:` 助詞ヒューリスティック。境界が誤る日本語が出たら B 案（欄ごとの Noul）を none 時 fallback として追加
 
