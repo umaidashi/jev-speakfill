@@ -1,4 +1,6 @@
 // Web Speech の薄い包み。final だけをコールバックし、interim は表示用に返す。continuous の勝手な onend は再開する
+import type { SpeechRecognitionCtor, SpeechRecognitionLike } from './webspeech'
+
 export type SpeechHandle = { stop(): void }
 export type SpeechCallbacks = {
   onFinal(text: string): void
@@ -9,9 +11,9 @@ export type SpeechCallbacks = {
 const FATAL = new Set(['not-allowed', 'audio-capture', 'service-not-allowed', 'language-not-supported', 'network'])
 
 export function startSpeech(cb: SpeechCallbacks, lang = 'ja-JP'): SpeechHandle {
-  const SR: { new (): SpeechRecognition } = (window as any).webkitSpeechRecognition ?? (window as any).SpeechRecognition
+  const SR: SpeechRecognitionCtor = (window as any).webkitSpeechRecognition ?? (window as any).SpeechRecognition
   let listening = true
-  let rec: SpeechRecognition | null = null
+  let rec: SpeechRecognitionLike | null = null
   const start = () => {
     rec = new SR()
     rec.lang = lang; rec.continuous = true; rec.interimResults = true

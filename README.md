@@ -26,6 +26,13 @@
 
 `npm test` は core / dom / server の 119 本（Vitest）。Jev はモックで、分割・文脈・型変換・状態機械の挙動を固定している。
 
+## npm で入れる
+
+```
+npm install jev-speakfill
+```
+`jev-speakfill`（コア）、`jev-speakfill/dom`（欄の収集と書き込み）、`jev-speakfill/web`（Web Speech の包み）。組み込み方は [docs/usage.md](docs/usage.md)。
+
 ## 5 分で試す
 
 ```

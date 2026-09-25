@@ -1,13 +1,55 @@
 {
   "name": "jev-speakfill",
-  "private": true,
+  "version": "0.1.0",
+  "description": "話すだけで日本語フォームの正しい欄に入力する。ルーティングは TypeSafe Jev（選ぶだけ、生成しない）",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/umaidashi/jev-speakfill.git"
+  },
+  "keywords": [
+    "speech",
+    "voice",
+    "form",
+    "japanese",
+    "typesafe",
+    "jev",
+    "chrome-extension"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
+  "main": "./dist/lib/core/index.js",
+  "types": "./dist/lib/core/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/core/index.d.ts",
+      "import": "./dist/lib/core/index.js"
+    },
+    "./dom": {
+      "types": "./dist/lib/hosts/dom/index.d.ts",
+      "import": "./dist/lib/hosts/dom/index.js"
+    },
+    "./web": {
+      "types": "./dist/lib/hosts/web/index.d.ts",
+      "import": "./dist/lib/hosts/web/index.js"
+    }
+  },
+  "files": [
+    "dist/lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
   "scripts": {
     "build": "node build.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "eval": "esbuild scripts/eval.ts --bundle --platform=node --format=esm --outfile=dist/eval.mjs --log-level=warning && node --env-file=.env dist/eval.mjs",
-    "dev": "npm run build && node --env-file=.env dist/server.mjs"
+    "dev": "npm run build && node --env-file=.env dist/server.mjs",
+    "build:lib": "node build-lib.mjs",
+    "prepublishOnly": "npm test && npm run build:lib"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.280",

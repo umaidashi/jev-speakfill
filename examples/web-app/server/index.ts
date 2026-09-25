@@ -4,7 +4,7 @@ import { readFile, appendFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { handleRoute } from './handler'
-import { callJev } from '../../../src/hosts/ext/jevClient'
+import { callJev } from '../../../src/core/jevClient'
 
 const key = process.env.TYPESAFE_API_KEY ?? ''
 const model = process.env.JEV_MODEL ?? 'jev-latest'

@@ -1,4 +1,4 @@
-import { callJev } from '../../src/hosts/ext/jevClient'
+import { callJev } from '../../src/core/jevClient'
 
 const q = { c0: { type: 'choice' as const, instructions: 'x', criteria: { a: 'A', none: 'n' } } }
 

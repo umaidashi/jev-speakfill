@@ -71,6 +71,36 @@ npm run dev            # build → http://localhost:8787
 ## サンプルフォーム（ブランドバッグ商品登録）
 `examples/web-app/index.html`（`examples/form.html` は build で同内容を生成）。ブランド（正式英語名）・カテゴリ・素材・色・金具の色・状態ランク（S〜E）は select、付属品は checkbox、寸法・価格は number、仕入日は date。発話の表記揺れ（ヴィトン → Louis Vuitton、ブラック → 黒、ほぼ新品 → A）は Jev が選択肢から選ぶ。
 
+## npm パッケージとして使う
+
+```
+npm install jev-speakfill
+```
+| import | 中身 | 動く場所 |
+|---|---|---|
+| `jev-speakfill` | コア（`Engine` / `pipeline` / `segment` / `coerce` / `resolveConfig` / `callJev` / 型） | Node・ブラウザ |
+| `jev-speakfill/dom` | `collectFields` / `applyPlacement` / `restore` | ブラウザ |
+| `jev-speakfill/web` | `startSpeech`（Web Speech）/ `TraceLog` | ブラウザ |
+
+ESM のみ。型は `nodenext` / `bundler` の両方の解決で通る。Chrome 拡張（`src/hosts/ext/`）と例（`examples/`）はパッケージに含めない。
+
+最小の組み込み（DOM モード、ルーティングはサーバ）:
+```ts
+import { Engine, type Host } from 'jev-speakfill'
+import { collectFields, applyPlacement, restore } from 'jev-speakfill/dom'
+import { startSpeech } from 'jev-speakfill/web'
+
+const host: Host = {
+  fields: async () => collectFields(document),
+  apply: async (p) => applyPlacement(p),
+  restore: async (id, prev) => restore(id, prev),
+  route: async (input) => (await fetch('/route', { method: 'POST', body: JSON.stringify(input) })).json(),
+}
+const engine = new Engine(host, (ev) => console.log(ev), Date.now, { instructions: '中古ブランドバッグの買取フォーム' })
+startSpeech({ onFinal: (t) => engine.final(t), onInterim: () => {}, onStatus: () => {}, onFatal: () => {} })
+```
+サーバ側は `pipeline(input, (s, q) => callJev(KEY, s, q))` を `/route` に置く（例は `examples/web-app/server/`）。
+
 ## 自分のアプリに組み込む（React / iOS）
 - **モデルモード**（推奨）: アプリのフォーム定義から `Field[]`（`id` = state のキー、`label`、`kind`、`options`、`type`、`constraints`）を作り、発話を `POST /route` に送り、`RouteResult.apply` を state に入れる。DOM を触らない
 - **DOM モード**: 既存ページに `widget.js` を後付け
@@ -84,6 +114,7 @@ npm run dev            # build → http://localhost:8787
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run build` | 拡張・widget・サーバを `dist/` に。`examples/form.html` も生成 |
 | `npm run dev` | build + サーバ起動 |
+| `npm run build:lib` | npm パッケージ用のビルド（`dist/lib`。`npm publish` 前に自動実行） |
 | `npm run eval` | `tests/fixtures/ja.json` の発話を実 API に流し、段階ごとの結果を `docs/eval/latest.md` に書く |
 
 `.env` は `.env.example` をコピー（eval とサーバ専用）。

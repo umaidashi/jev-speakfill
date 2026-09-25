@@ -1,4 +1,4 @@
-import { callJev } from './jevClient'
+import { callJev } from '../../core/jevClient'
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
 

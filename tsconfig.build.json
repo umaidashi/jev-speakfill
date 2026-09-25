@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "outDir": "dist/lib",
+    "rootDir": "src",
+    "types": [
+      "node"
+    ],
+    "allowImportingTsExtensions": false,
+    "emitDeclarationOnly": true
+  },
+  "include": [
+    "src/core",
+    "src/hosts/dom",
+    "src/hosts/web"
+  ]
+}

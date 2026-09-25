@@ -1,4 +1,4 @@
-import type { JevResponse, Question } from '../../core/types'
+import type { JevResponse, Question } from './types'
 
 export async function callJev(
   apiKey: string, state: unknown, questions: Record<string, Question>, fetchImpl: typeof fetch = fetch, model = 'jev-latest',
