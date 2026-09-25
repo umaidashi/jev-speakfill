@@ -6,7 +6,7 @@
 3. 拡張の「オプション」で次のどちらか
    - **BYOK**: TypeSafe API キーを保存（`chrome.storage.local` のみ。service worker からしか使わない）
    - **サーバ経由**: 「ルーティングサーバ URL」に `http://localhost:8787`（`npm run dev` で起動）。キーはサーバ側、トレースがサーバの `logs/traces.jsonl` に残る
-4. 同じ画面の「語彙・ヒント設定」にドメインの語彙を JSON で入れる（任意。「商品登録プリセットを入れる」で `JA_COMMERCE` が入る）
+4. 同じ画面の「語彙・ヒント設定」にドメインの語彙を JSON で入れる（任意。商品登録向けの例は `examples/web-app/speakfill.config.json`）
 5. フォームのあるページ（例: `examples/form.html`）を開き、ツールバーのアイコン → side panel → 🎤 開始
    - 初回はマイク許可ページ `grant.html` が自動で開く（side panel からは許可ダイアログが出ないため）
 6. 話す。値と値の間は読点程度の間でよい。「ルイヴィトン ハンドバッグ ネバーフル レザー 赤 金具はゴールド 状態は B 箱あり 保存袋あり」のような一文でも入る
@@ -34,7 +34,7 @@ npm run dev            # build → http://localhost:8787
 
 ### サーバ
 - `POST /route` — body は `RouteInput`（`fields`, `text`, `filled`, `ctx`, `now`, `recent`, `config`）、返り値は `RouteResult`（`apply`, `pending`, `rejected`, `unplaced`, `hint`, `ctx`, `trace`）。CORS 付き
-- `speakfill.config.json` があれば語彙・ヒントの既定として読む（`SPEAKFILL_CONFIG` で別パス）。リクエストの `config` が上書き
+- `examples/web-app/speakfill.config.json` を語彙・ヒントの既定として読む（`SPEAKFILL_CONFIG` で別パス）。リクエストの `config` が上書き
 - 発話ごとの `Trace` を `logs/traces.jsonl` に追記（`TRACE_LOG` で別パス）。`tail -f logs/traces.jsonl | python3 scripts/trace-tail.py` で読める
 - `PORT`（既定 8787）
 
@@ -57,15 +57,15 @@ npm run dev            # build → http://localhost:8787
 | `sttNote` / `typeHints` / `threshold` / `continueMs` / `maxFields` / `particles` / `trailers` / `negations` / `colors` / `noonWords` | | 既定値を上書き |
 
 注入口:
-- **サーバ**: `speakfill.config.json`。リクエストの `config` が上書き
+- **サーバ**: 設定ファイル（サンプルは `examples/web-app/speakfill.config.json`）。リクエストの `config` が上書き
 - **拡張**: オプション画面の「語彙・ヒント設定」。サーバ経由のときはサーバ設定に重ねて送る
 - **widget**: `data-config` / `window.speakfillConfig`
 - **コード**: `pipeline(input, ask)` の `input.config`、`new Engine(host, onEvent, now, config)`、`collectFields(doc, { excludeLabels, maxFields })`
 
-`src/core/presets.ts` の `JA_COMMERCE` は商品登録・顧客情報向けの語彙（eval とサンプルが使う）。自分のドメインではこれをコピーして編集する。
+`examples/web-app/speakfill.config.json` が商品登録・顧客情報向けの語彙（eval とサンプルが使う）。コアはドメイン語彙を一切持たないので、自分のドメインではこのファイルをコピーして編集し、サーバの設定ファイルか拡張のオプションに置く。
 
 ## サンプルフォーム（ブランドバッグ商品登録）
-`src/web/index.html`（`examples/form.html` は build で同内容を生成）。ブランド（正式英語名）・カテゴリ・素材・色・金具の色・状態ランク（S〜E）は select、付属品は checkbox、寸法・価格は number、仕入日は date。発話の表記揺れ（ヴィトン → Louis Vuitton、ブラック → 黒、ほぼ新品 → A）は Jev が選択肢から選ぶ。
+`examples/web-app/index.html`（`examples/form.html` は build で同内容を生成）。ブランド（正式英語名）・カテゴリ・素材・色・金具の色・状態ランク（S〜E）は select、付属品は checkbox、寸法・価格は number、仕入日は date。発話の表記揺れ（ヴィトン → Louis Vuitton、ブラック → 黒、ほぼ新品 → A）は Jev が選択肢から選ぶ。
 
 ## 自分のアプリに組み込む（React / iOS）
 - **モデルモード**（推奨）: アプリのフォーム定義から `Field[]`（`id` = state のキー、`label`、`kind`、`options`、`type`、`constraints`）を作り、発話を `POST /route` に送り、`RouteResult.apply` を state に入れる。DOM を触らない

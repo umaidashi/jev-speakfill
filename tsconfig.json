@@ -4,10 +4,22 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
-    "lib": ["ES2022", "DOM"],
-    "types": ["chrome", "vitest/globals", "node"],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "types": [
+      "chrome",
+      "vitest/globals",
+      "node"
+    ],
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "scripts"]
+  "include": [
+    "src",
+    "tests",
+    "scripts",
+    "examples/web-app"
+  ]
 }

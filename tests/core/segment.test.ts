@@ -1,6 +1,7 @@
 import { segment as segmentRaw } from '../../src/core/segment'
 import { resolveConfig } from '../../src/core/config'
-import { JA_COMMERCE } from '../../src/core/presets'
+import { readFileSync } from 'node:fs'
+const JA_COMMERCE = JSON.parse(readFileSync('examples/web-app/speakfill.config.json', 'utf8'))
 import type { Chunk } from '../../src/core/types'
 
 // 語彙は商品登録プリセットで。src/srcN は route 用の付加情報なので text/hint/glue だけを見る

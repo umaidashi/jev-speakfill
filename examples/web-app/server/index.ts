@@ -4,15 +4,15 @@ import { readFile, appendFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { handleRoute } from './handler'
-import { callJev } from '../ext/jevClient'
+import { callJev } from '../../../src/ext/jevClient'
 
 const key = process.env.TYPESAFE_API_KEY ?? ''
 const port = Number(process.env.PORT ?? 8787)
-const webDir = join(process.cwd(), 'dist', 'web')
+const webDir = join(process.cwd(), 'dist', 'web-app')
 const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.map': 'application/json' }
 const logFile = process.env.TRACE_LOG ?? 'logs/traces.jsonl'   // 発話ごとの Trace を 1 行ずつ追記（tail -f で追える）
 // 語彙・ヒントの設定（core/config.ts の SpeakfillConfig を JSON で）。無ければ DEFAULT（日本語一般の最小）
-const configFile = process.env.SPEAKFILL_CONFIG ?? 'speakfill.config.json'
+const configFile = process.env.SPEAKFILL_CONFIG ?? 'examples/web-app/speakfill.config.json'
 const baseConfig = existsSync(configFile) ? JSON.parse(await readFile(configFile, 'utf8')) : {}
 await mkdir('logs', { recursive: true })
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }

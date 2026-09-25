@@ -1,6 +1,7 @@
 import { buildQuestions, optionQuestion } from '../../src/core/jev'
 import { DEFAULT_CONFIG, resolveConfig } from '../../src/core/config'
-import { JA_COMMERCE } from '../../src/core/presets'
+import { readFileSync } from 'node:fs'
+const JA_COMMERCE = JSON.parse(readFileSync('examples/web-app/speakfill.config.json', 'utf8'))
 import type { Field } from '../../src/core/types'
 
 const fields: Field[] = [

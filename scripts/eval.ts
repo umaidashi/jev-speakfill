@@ -5,7 +5,7 @@ import { pipeline } from '../src/core/pipeline.ts'
 import type { Context } from '../src/core/context.ts'
 import { callJev } from '../src/ext/jevClient.ts'
 import type { Answer, Field, JevAsk } from '../src/core/types.ts'
-import { JA_COMMERCE } from '../src/core/presets.ts'
+const JA_COMMERCE = JSON.parse(readFileSync('examples/web-app/speakfill.config.json', 'utf8'))   // サンプルの語彙設定
 
 const key = process.env.TYPESAFE_API_KEY ?? ''
 const NOW = Date.UTC(2026, 8, 25, 3)   // 日付ケースを固定するため 2026-09-25 JST

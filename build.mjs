@@ -14,10 +14,9 @@ await build({
 })
 cpSync('src/ext/static', 'dist', { recursive: true })
 
-// web サンプル: フロートボタン widget + ページ
-await build({ entryPoints: { widget: 'src/web/widget.ts' }, bundle: true, format: 'iife', outdir: 'dist/web', target: 'chrome116', sourcemap: true, charset: 'utf8', define: { __BUILD__: BUILD } })
-cpSync('src/web/index.html', 'dist/web/index.html')
+// examples/web-app: フロートボタン widget + サンプルページ + backend
+await build({ entryPoints: { widget: 'examples/web-app/widget.ts' }, bundle: true, format: 'iife', outdir: 'dist/web-app', target: 'chrome116', sourcemap: true, charset: 'utf8', define: { __BUILD__: BUILD } })
+cpSync('examples/web-app/index.html', 'dist/web-app/index.html')
 // 拡張の手動確認用サンプルは同じフォーム（widget なし）
-writeFileSync('examples/form.html', readFileSync('src/web/index.html', 'utf8').replace(/<script src="widget.js"><\/script>\n?/, ''))
-// backend
-await build({ entryPoints: { server: 'src/server/index.ts' }, bundle: true, platform: 'node', format: 'esm', outfile: 'dist/server.mjs', target: 'node20' })
+writeFileSync('examples/form.html', readFileSync('examples/web-app/index.html', 'utf8').replace(/<script src="widget.js"><\/script>\n?/, ''))
+await build({ entryPoints: { server: 'examples/web-app/server/index.ts' }, bundle: true, platform: 'node', format: 'esm', outfile: 'dist/server.mjs', target: 'node20' })

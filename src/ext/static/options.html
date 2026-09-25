@@ -5,7 +5,7 @@
 <label style="display:block;margin-top:12px">ルーティングサーバ URL（任意）<br><input id="server" placeholder="http://localhost:8787"></label>
 <p style="color:#666">設定すると Jev をここ経由で呼ぶ（API キーはサーバ側）。空なら上のキーで直接呼ぶ（BYOK）。サーバは発話ごとのトレースを <code>logs/traces.jsonl</code> に書く。</p>
 <label style="display:block;margin-top:12px">語彙・ヒント設定（JSON、任意）<br><textarea id="config" rows="12" style="width:100%;font:12px monospace" placeholder='{"synonyms":[{"spoken":"名前","label":"氏名"}],"numericLabels":["価格"],"instructions":"中古ブランドバッグの買取フォーム"}'></textarea></label>
-<p style="color:#666">core/config.ts の <code>SpeakfillConfig</code> の一部を JSON で。空なら日本語一般の最小設定。サーバ経由のときはサーバの設定に重ねて送る。<button id="preset" type="button">商品登録プリセットを入れる</button></p>
+<p style="color:#666">core/config.ts の <code>SpeakfillConfig</code> の一部を JSON で。空なら日本語一般の最小設定。サーバ経由のときはサーバの設定に重ねて送る。例: リポジトリの <code>examples/web-app/speakfill.config.json</code>（商品登録向け）。</p>
 <button id="save">保存</button> <span id="msg"></span>
 <p>キーは <code>chrome.storage.local</code> にのみ保存され、拡張の service worker からしか使われません。ページ側のスクリプトには渡りません。</p>
 <script type="module" src="options.js"></script>

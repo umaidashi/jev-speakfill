@@ -1,5 +1,3 @@
-import { JA_COMMERCE } from '../core/presets'
-
 const key = document.getElementById('key') as HTMLInputElement
 const server = document.getElementById('server') as HTMLInputElement
 const config = document.getElementById('config') as HTMLTextAreaElement
@@ -9,7 +7,6 @@ chrome.storage.local.get(['typesafeApiKey', 'serverUrl', 'speakfillConfig']).the
   if (serverUrl) server.value = serverUrl
   if (speakfillConfig) config.value = JSON.stringify(speakfillConfig, null, 2)
 })
-document.getElementById('preset')!.onclick = () => { config.value = JSON.stringify(JA_COMMERCE, null, 2) }
 document.getElementById('save')!.onclick = async () => {
   let speakfillConfig: unknown = null
   if (config.value.trim()) {

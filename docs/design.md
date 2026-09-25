@@ -58,17 +58,17 @@ core/pipeline.ts segment → context → route → gate。ブラウザでも Nod
 | ホスト | fields / apply / restore | route |
 |---|---|---|
 | Chrome 拡張 (`src/ext/`) | content script（`src/dom/`）にメッセージ | ローカル `pipeline` + Jev（service worker、BYOK）／オプション設定でサーバの `/route` |
-| web widget (`src/web/widget.ts`) | 同じ `src/dom/` を直接 | `fetch('/route')` |
-| サーバ (`src/server/`) | — | `pipeline` + Jev（キーは `.env`）。CORS 付き、トレースを `logs/traces.jsonl` へ |
+| web widget (`examples/web-app/widget.ts`) | 同じ `src/dom/` を直接 | `fetch('/route')` |
+| サーバ (`examples/web-app/server/`) | — | `pipeline` + Jev（キーは `.env`）。CORS 付き、トレースを `logs/traces.jsonl` へ |
 | React / iOS（今後） | アプリのフォーム state に直接（DOM を触らない） | `fetch('/route')` |
 
 `route` の入出力は JSON（`RouteInput` / `RouteResult`）。`ctx`（欄名ヒントと直前の配置）と `recent` をクライアントが持ち回るのでサーバはステートレス。
 
 ### 構成
-- `src/core/` — `config`（語彙・閾値）/ `presets` / `types` / `segment` / `context` / `format` / `normalize` / `jev` / `route` / `pipeline` / `engine`。DOM も mic も知らない
+- `src/core/` — `config`（語彙・閾値）/ `types` / `segment` / `context` / `format` / `normalize` / `jev` / `route` / `pipeline` / `engine`。DOM も mic も知らない
 - `src/dom/` — 欄収集・書き込み・Undo（拡張と widget が共用）
-- `src/web/` — Web Speech の包み、トレース保存、フロートボタン widget、サンプルページ
-- `src/server/` — `POST /route` ハンドラ + http サーバ
+- `src/web/` — ブラウザ共通: Web Speech の包み、トレース保存
+- `examples/web-app/` — widget・サンプルページ・`POST /route` サーバ・語彙設定
 - `src/ext/` — MV3（side panel / content script / service worker / options / grant）
 - `tests/` — Vitest。`tests/fixtures/ja.json` は eval の発話と期待値
 - `docs/` — 競合調査、設計 spec、実装 plan、eval 結果
@@ -80,6 +80,6 @@ core/pipeline.ts segment → context → route → gate。ブラウザでも Nod
 - **Jev は選ぶだけ、生成しない**。値の文字列はつねに文字起こし由来（型変換を除く）。誤入力の原因が「認識」か「配置」かを切り分けられる
 - **option 質問は 2 往復目に分離**。全欄分を投機的に同梱すると入力トークンが 欄数×chunk 数 で膨らむ（実測 1.4 倍）。往復の増加は ~150ms
 - **1 往復目の閾値 0.5**。0.35 では「バッグ」→ 氏名 (0.45) のような迷いが通った
-- **語彙はコアに固定しない**。`SpeakfillConfig` の DEFAULT は日本語一般の最小、ドメイン語彙はプリセット/設定で注入（`docs/usage.md`）
+- **語彙はコアに固定しない**。`SpeakfillConfig` の DEFAULT は日本語一般の最小。ドメイン語彙は `src/` に置かず、ホスト側の設定（サンプルは `examples/web-app/speakfill.config.json`）で注入する（`docs/usage.md`）
 - **サーバはステートレス**。`ctx`（欄名ヒントと直前の配置）と `recent`（直前 3 発話）はクライアントが持ち回る
 - 経緯と代替案は `spec/`（着手時の spec と plan、競合調査）。更新しない

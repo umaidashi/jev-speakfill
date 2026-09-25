@@ -1,6 +1,7 @@
 import { coerce } from '../../src/core/format'
 import { resolveConfig } from '../../src/core/config'
-import { JA_COMMERCE } from '../../src/core/presets'
+import { readFileSync } from 'node:fs'
+const JA_COMMERCE = JSON.parse(readFileSync('examples/web-app/speakfill.config.json', 'utf8'))
 const CFG = resolveConfig(JA_COMMERCE)
 import type { Field } from '../../src/core/types'
 

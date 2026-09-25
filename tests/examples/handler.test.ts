@@ -1,4 +1,4 @@
-import { handleRoute } from '../../src/server/handler'
+import { handleRoute } from '../../examples/web-app/server/handler'
 import type { Answer } from '../../src/core/types'
 
 const answer = (choice: string, confidence = 0.9): Answer => ({ type: 'choice', choice, probabilities: { [choice]: confidence }, confidence })

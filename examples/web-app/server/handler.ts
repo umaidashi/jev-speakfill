@@ -1,6 +1,6 @@
-import { pipeline, type RouteInput } from '../core/pipeline'
-import type { JevAsk } from '../core/types'
-import type { SpeakfillConfig } from '../core/config'
+import { pipeline, type RouteInput } from '../../../src/core/pipeline'
+import type { JevAsk } from '../../../src/core/types'
+import type { SpeakfillConfig } from '../../../src/core/config'
 
 // POST /route の本体。HTTP から切り離してテストする。Jev キーは ask に閉じ込める
 export async function handleRoute(body: string, ask: JevAsk, baseConfig: Partial<SpeakfillConfig> = {}): Promise<{ status: number; body: any }> {
