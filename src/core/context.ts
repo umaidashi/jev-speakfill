@@ -20,7 +20,13 @@ function labelFor(text: string, fields: Field[]): string | undefined {
   const exact = fields.find((f) => f.label && f.label === text)
   if (exact) return exact.label
   const syn = SYNONYMS.find(([spoken]) => spoken === text)
-  return syn && fields.find((f) => f.label.includes(syn[1]))?.label
+  if (syn) return fields.find((f) => f.label.includes(syn[1]))?.label
+  // 「発売」→「発売月」のような前方一致。2 文字以上で、候補が 1 つだけのとき
+  if (text.length >= 2) {
+    const pre = fields.filter((f) => f.label.startsWith(text))
+    if (pre.length === 1) return pre[0].label
+  }
+  return undefined
 }
 
 export function applyContext(chunks: Chunk[], fields: Field[], ctx: Context, now: number): { chunks: Chunk[]; direct: Placement[] } {

@@ -19,6 +19,15 @@ test('欄名だけの chunk は値にせず、次の chunk のヒントになる
   expect(ctx.hint).toBeUndefined()
 })
 
+test('欄名の前方一致（「発売」→ 発売月）でもヒントになる。1 文字は対象外', () => {
+  const ctx = fresh()
+  const f2: Field[] = [...fields, { id: 'release', label: '発売月', kind: 'text', type: 'month' }]
+  applyContext([{ text: '発売' }], f2, ctx, 0)
+  expect(ctx.hint).toBe('発売月')
+  const ctx2 = fresh()
+  expect(applyContext([{ text: '発' }], f2, ctx2, 0).chunks).toEqual([{ text: '発' }])   // 1 文字の前方一致は値扱い
+})
+
 test('同義語（電話）でもヒントになる', () => {
   const ctx = fresh()
   applyContext([{ text: '電話' }], fields, ctx, 0)

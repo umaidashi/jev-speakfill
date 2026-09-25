@@ -7,7 +7,8 @@ export type Coerced = { value: string; status: 'ok' | 'short' | 'invalid' }
 const ok = (value: string): Coerced => ({ value, status: 'ok' })
 const invalid = (value: string): Coerced => ({ value, status: 'invalid' })
 
-const toHalf = (s: string) => s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[／]/g, '/').replace(/[：]/g, ':')
+// 全角→半角。route の連結で入った空白も落とす（「2025年 7月」）
+const toHalf = (s: string) => s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[／]/g, '/').replace(/[：]/g, ':').replace(/\s+/g, '')
 const pad = (n: number) => String(n).padStart(2, '0')
 const JST = 9 * 60 * 60 * 1000
 const jstDate = (now: number, offsetDays = 0) => new Date(now + JST + offsetDays * 86400000)   // getUTC* で JST の日付を読む

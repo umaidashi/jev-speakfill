@@ -99,4 +99,4 @@ core/pipeline.ts segment → context → route → gate。ブラウザでも Nod
 - `src/ext/` — MV3 ホスト（side panel / content script / service worker）
 
 ## 開発
-`npm test` / `npm run typecheck` / `npm run dev`（web サンプル）/ `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し、`docs/eval/latest.md` に段階ごとの結果を書く。現在 49/49）
+`npm test` / `npm run typecheck` / `npm run dev`（web サンプル）/ `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し、`docs/eval/latest.md` に段階ごとの結果を書く。現在 51/51）

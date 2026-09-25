@@ -96,7 +96,7 @@ export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[
       return parts.map((q, i) => (i < parts.length - 1 ? q.replace(/で$/, '') : q))
     })
     .map((part) => part.replace(TRAIL, ''))
-    .filter((part) => part.length > 0)
+    .filter((part) => part.length > 0 && !PARTICLES.has(part))   // 「の」だけの chunk は捨てる
     .map((part) => stripHint(part, fields))
     .filter((c) => c.text.length > 0)
     .flatMap((c) => {

@@ -51,6 +51,10 @@ test('datetime-local / month', () => {
   ok('来年の12月25日', f('month'), '2027-12')
   ok('来年の12月25', f('month'), '2027-12')
   bad('13月', f('month'))
+  ok('2025年 7月', f('month'), '2025-07')          // route の連結で空白が入っても読む
+  ok('去年 7月', f('month'), '2025-07')
+  ok('2026年 9月 25日', f('date'), '2026-09-25')
+  ok('午後 3時 半', f('time'), '15:30')
 })
 test('number / range: 桁区切り・全角・単位を落とす。min/max/step', () => {
   ok('3000', f('number'), '3000')
