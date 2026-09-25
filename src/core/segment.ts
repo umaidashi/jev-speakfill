@@ -42,6 +42,12 @@ function stripHint(text: string, fields: Field[]): Chunk {
   for (const [bare, label] of labels) {
     if (text.length > bare.length && text.startsWith(bare) && /^[\d０-９]/.test(text.slice(bare.length))) return { text: text.slice(bare.length), hint: label }
   }
+  // 後置の欄名（「ゴールド金具」→ 金具の色）。ラベルの先頭 2 文字以上が末尾に付いている
+  for (const [bare, label] of labels) {
+    for (const w of new Set([bare, bare.slice(0, 2)])) {
+      if (w.length >= 2 && text.length > w.length && text.endsWith(w)) return { text: text.slice(0, -w.length), hint: label }
+    }
+  }
   return { text }
 }
 

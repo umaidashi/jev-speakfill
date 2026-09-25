@@ -136,6 +136,11 @@ describe('ブランドバッグ想定', () => {
     expect(segment('箱と保存袋あり', true, bag)).toEqual([{ text: '箱' }, { text: '保存袋あり', glue: true }])
     expect(segment('赤革', true, bag)).toEqual([{ text: '赤' }, { text: '革', glue: true }])
   })
+  test('末尾がラベル語（2 文字以上）なら後置の欄名として hint にする（ゴールド金具 → 金具の色）', () => {
+    const f2: Field[] = [...bag, { id: 'hardware', label: '金具の色', kind: 'select', options: ['ゴールド', 'シルバー'] }]
+    expect(segment('ゴールド金具', true, f2)).toEqual([{ text: 'ゴールド', hint: '金具の色' }])
+    expect(segment('ゴールド', true, f2)).toEqual([{ text: 'ゴールド' }])
+  })
   test('ラベル語の直後に数字が続けば助詞なしでも hint にする（幅32センチ / 仕入れ値12万円）', () => {
     expect(segment('幅32センチ、高さ29、仕入れ値12万円、販売価格15万8000円', true, bag)).toEqual([
       { text: '32センチ', hint: '幅 (cm)' }, { text: '高さ29' }, { text: '12万円', hint: '仕入れ値' }, { text: '15万8000円', hint: '販売価格' },

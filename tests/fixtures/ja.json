@@ -5,30 +5,30 @@
       "label": "ブランド",
       "kind": "select",
       "options": [
-        "ルイ・ヴィトン",
-        "シャネル",
-        "エルメス",
-        "グッチ",
-        "プラダ",
-        "セリーヌ",
-        "ディオール",
-        "フェンディ",
-        "ボッテガ・ヴェネタ",
-        "バレンシアガ",
-        "ロエベ",
-        "サンローラン",
-        "バーバリー",
-        "ミュウミュウ",
-        "ゴヤール",
-        "クロエ",
-        "ジバンシィ",
-        "ヴァレンティノ",
-        "コーチ",
-        "マイケル・コース",
-        "ケイト・スペード",
-        "フルラ",
-        "トリー バーチ",
-        "ロンシャン",
+        "Louis Vuitton",
+        "CHANEL",
+        "HERMÈS",
+        "GUCCI",
+        "PRADA",
+        "CELINE",
+        "DIOR",
+        "FENDI",
+        "Bottega Veneta",
+        "BALENCIAGA",
+        "LOEWE",
+        "Saint Laurent",
+        "BURBERRY",
+        "MIU MIU",
+        "GOYARD",
+        "Chloé",
+        "GIVENCHY",
+        "VALENTINO",
+        "COACH",
+        "MICHAEL KORS",
+        "kate spade new york",
+        "FURLA",
+        "Tory Burch",
+        "LONGCHAMP",
         "その他"
       ]
     },
@@ -87,16 +87,29 @@
       ]
     },
     {
-      "id": "cond",
-      "label": "状態",
+      "id": "hardware",
+      "label": "金具の色",
       "kind": "select",
       "options": [
-        "新品・未使用",
-        "未使用に近い",
-        "目立った傷や汚れなし",
-        "やや傷や汚れあり",
-        "傷や汚れあり",
-        "全体的に状態が悪い"
+        "ゴールド",
+        "シルバー",
+        "ピンクゴールド",
+        "ガンメタ",
+        "ブラック",
+        "金具なし"
+      ]
+    },
+    {
+      "id": "cond",
+      "label": "状態ランク",
+      "kind": "select",
+      "options": [
+        "S（新品・未使用）",
+        "A（未使用に近い）",
+        "B（目立った傷や汚れなし）",
+        "C（やや傷や汚れあり）",
+        "D（傷や汚れあり）",
+        "E（全体的に状態が悪い）"
       ]
     },
     {
@@ -211,7 +224,7 @@
     {
       "text": "ルイヴィトン、ネヴァーフル、トート、黒",
       "expect": {
-        "brand": "ルイ・ヴィトン",
+        "brand": "Louis Vuitton",
         "model": "ネヴァーフル",
         "category": "トートバッグ",
         "color": "黒"
@@ -220,7 +233,7 @@
     {
       "text": "ヴィトン、モノグラム、ショルダー、茶色",
       "expect": {
-        "brand": "ルイ・ヴィトン",
+        "brand": "Louis Vuitton",
         "model": "モノグラム",
         "category": "ショルダーバッグ",
         "color": "茶"
@@ -229,7 +242,7 @@
     {
       "text": "ボッテガ、イントレチャート、レザー、ブラック",
       "expect": {
-        "brand": "ボッテガ・ヴェネタ",
+        "brand": "Bottega Veneta",
         "model": "イントレチャート",
         "material": "レザー",
         "color": "黒"
@@ -238,16 +251,16 @@
     {
       "text": "シャネル、マトラッセ、ラムスキン、ほぼ新品",
       "expect": {
-        "brand": "シャネル",
+        "brand": "CHANEL",
         "model": "マトラッセ",
         "material": "レザー",
-        "cond": "未使用に近い"
+        "cond": "A（未使用に近い）"
       }
     },
     {
       "text": "エルメス、バーキン30、トゴ",
       "expect": {
-        "brand": "エルメス",
+        "brand": "HERMÈS",
         "model": "バーキン30",
         "material": "レザー"
       }
@@ -255,10 +268,10 @@
     {
       "text": "サンローラン、キャンバス、ベージュ、傷あり",
       "expect": {
-        "brand": "サンローラン",
+        "brand": "Saint Laurent",
         "material": "キャンバス",
         "color": "ベージュ",
-        "cond": "傷や汚れあり"
+        "cond": "D（傷や汚れあり）"
       }
     },
     {
@@ -298,7 +311,7 @@
       "expect": {
         "color": "赤",
         "material": "レザー",
-        "brand": "ルイ・ヴィトン"
+        "brand": "Louis Vuitton"
       }
     },
     {
@@ -317,6 +330,58 @@
       "text": "郵便番号、100 0001",
       "expect": {
         "zip": "100-0001"
+      }
+    },
+    {
+      "text": "エルメス、バーキン30、トゴ、ゴールド金具",
+      "expect": {
+        "brand": "HERMÈS",
+        "model": "バーキン30",
+        "material": "レザー",
+        "hardware": "ゴールド"
+      }
+    },
+    {
+      "text": "金具はシルバー、本体は黒、ランクA",
+      "expect": {
+        "hardware": "シルバー",
+        "color": "黒",
+        "cond": "A（未使用に近い）"
+      }
+    },
+    {
+      "text": "状態はBランク",
+      "expect": {
+        "cond": "B（目立った傷や汚れなし）"
+      }
+    },
+    {
+      "text": "新品未使用、ピンクゴールドの金具",
+      "expect": {
+        "cond": "S（新品・未使用）",
+        "hardware": "ピンクゴールド"
+      }
+    },
+    {
+      "text": "グッチ、GG マーモント、ショルダー",
+      "expect": {
+        "brand": "GUCCI",
+        "model": "GG マーモント",
+        "category": "ショルダーバッグ"
+      }
+    },
+    {
+      "text": "クロエ、マーシー",
+      "expect": {
+        "brand": "Chloé",
+        "model": "マーシー"
+      }
+    },
+    {
+      "text": "ケイトスペード、トート",
+      "expect": {
+        "brand": "kate spade new york",
+        "category": "トートバッグ"
       }
     }
   ]
