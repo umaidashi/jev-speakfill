@@ -1,6 +1,5 @@
 import type { Field, Placement } from '../core/types'
 
-const MAX = 100
 const registry = new Map<string, HTMLElement | HTMLInputElement[]>()  // radio は同名グループの配列
 const ids = new WeakMap<HTMLElement, string>()                          // 要素ごとに安定した id
 let seq = 0
@@ -51,9 +50,6 @@ function isVisible(el: HTMLElement): boolean {
   return true
 }
 
-// ponytail: STT は必ず漢字化するので、読み欄は MVP 対象外。業務版ではサーバ側で漢字→かな変換する
-const KANA_LABEL = /ふりがな|フリガナ|かな|カナ/
-
 const TYPED = new Set(['date', 'time', 'datetime-local', 'month', 'week', 'number', 'range', 'email', 'url', 'color', 'tel'])
 
 // HTML の type と制約属性を Field に載せる（core/format.ts が発話を正規形に変換・検証するため）
@@ -68,7 +64,11 @@ function typeAndConstraints(el: HTMLElement): Pick<Field, 'type' | 'constraints'
   return out
 }
 
-export function collectFields(root: Document): Field[] {
+export type CollectOptions = { excludeLabels?: string[]; maxFields?: number }   // core/config の同名項目を渡す
+
+export function collectFields(root: Document, opts: CollectOptions = {}): Field[] {
+  const MAX = opts.maxFields ?? 100
+  const exclude = opts.excludeLabels ?? []
   registry.clear()
   const out: Field[] = []
   const seenRadio = new Set<string>()
@@ -82,7 +82,7 @@ export function collectFields(root: Document): Field[] {
   for (const el of all) {
     if (!isVisible(el)) continue
     if (el instanceof HTMLInputElement && isExcluded(el)) continue
-    if (!(el instanceof HTMLSelectElement) && KANA_LABEL.test(labelOf(el))) continue
+    if (!(el instanceof HTMLSelectElement) && exclude.length && exclude.some((w) => labelOf(el).includes(w))) continue
     if (el instanceof HTMLSelectElement) {
       add(el, el, { label: labelOf(el), kind: 'select', options: Array.from(el.options).map((o) => o.text.trim()) })
     } else if (el instanceof HTMLInputElement && el.type === 'radio') {

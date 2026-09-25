@@ -25,14 +25,15 @@ test('password / cc-* / one-time-code / hidden / disabled / readonly は除外',
   expect(fields).toHaveLength(1)
 })
 
-test('ふりがな/フリガナ/カナ 欄は除外（STT が漢字化するため MVP 対象外）', () => {
-  const fields = page(`
+test('excludeLabels に合う欄は除外（例: ふりがな）。指定なしなら除外しない', () => {
+  document.body.innerHTML = `
     <label for="a">氏名</label><input id="a">
     <label for="b">ふりがな</label><input id="b">
     <label for="c">フリガナ</label><input id="c">
     <input id="d" placeholder="氏名（カナ）">
-  `)
-  expect(fields.map((f) => f.label)).toEqual(['氏名'])
+  `
+  expect(collectFields(document, { excludeLabels: ['ふりがな', 'フリガナ', 'カナ'] }).map((f) => f.label)).toEqual(['氏名'])
+  expect(collectFields(document).map((f) => f.label)).toEqual(['氏名', 'ふりがな', 'フリガナ', '氏名（カナ）'])
 })
 
 test('select / radio / checkbox は kind と options を持つ', () => {

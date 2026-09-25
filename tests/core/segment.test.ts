@@ -1,8 +1,11 @@
 import { segment as segmentRaw } from '../../src/core/segment'
+import { resolveConfig } from '../../src/core/config'
+import { JA_COMMERCE } from '../../src/core/presets'
 import type { Chunk } from '../../src/core/types'
 
-// src/srcN は route 用の付加情報なので、ここでは text/hint/glue だけを見る
-const segment = (text: string, isFinal: boolean, f: Field[]): Chunk[] => segmentRaw(text, isFinal, f).map(({ src, srcN, ...c }) => c)
+// 語彙は商品登録プリセットで。src/srcN は route 用の付加情報なので text/hint/glue だけを見る
+const CFG = resolveConfig(JA_COMMERCE)
+const segment = (text: string, isFinal: boolean, f: Field[]): Chunk[] => segmentRaw(text, isFinal, f, CFG).map(({ src, srcN, ...c }) => c)
 import type { Field } from '../../src/core/types'
 
 const fields: Field[] = [
@@ -176,4 +179,9 @@ test('単語分割した chunk は元の断片（src）と語数（srcN）を持
   expect(segmentRaw('底面に傷あり', true, fields)).toEqual([
     { text: '底面', src: '底面に傷あり', srcN: 2 }, { text: '傷あり', glue: true, src: '底面に傷あり', srcN: 2 },
   ])
+})
+
+test('DEFAULT 設定には同義語が無い（ドメイン語彙はプリセット/設定で注入する）', () => {
+  expect(segmentRaw('名前は山田太郎', true, fields).some((c) => c.hint)).toBe(false)   // 同義語なし → hint が付かない
+  expect(segmentRaw('名前は山田太郎', true, fields, CFG).map((c) => c.hint)).toEqual(['氏名', '氏名'])   // プリセットあり → hint
 })

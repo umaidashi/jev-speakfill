@@ -74,3 +74,9 @@ test('欄名だけの chunk（町 = マチ）を Jev が欄に当てたら、直
   expect(r.unplaced).toEqual([])
   expect(r.ctx.hint).toBeUndefined()   // 使い切ったヒントは残さない
 })
+
+test('RouteInput.config で語彙を注入できる（同義語「名前」→ 氏名）', async () => {
+  const ask2: JevAsk = async (_s, q) => Object.fromEntries(Object.keys(q).map((id) => [id, answer('name')]))
+  const r = await pipeline({ fields, text: '名前は田中', filled: {}, ctx: fresh(), now: 0, config: { synonyms: [{ spoken: '名前', label: '氏名' }] } }, ask2)
+  expect(r.trace.segment).toEqual([{ text: '田中', hint: '氏名' }])
+})

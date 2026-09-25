@@ -1,5 +1,6 @@
 import { normalize } from './normalize'
 import { coerce, effectiveType } from './format'
+import { DEFAULT_CONFIG, matchesAny, type SpeakfillConfig } from './config'
 import type { Chunk, Field, Placement } from './types'
 
 // 発話をまたぐ文脈。即時配置はそのままに、「欄名だけ」「番号の続き」を後から解釈する
@@ -8,20 +9,14 @@ export type Context = {
   last: { fieldId: string; chunk: string; at: number } | undefined  // 直近の配置
 }
 
-const CONTINUE_MS = 5000
 const NUMERIC = /^[\d０-９\-ー－ ]+$/
-const NUMERIC_FIELD = /電話|TEL|tel|携帯|FAX|郵便|〒|番号/
-const SYNONYMS: [string, string][] = [
-  ['名前', '氏名'], ['なまえ', '氏名'], ['電話', '電話'], ['メール', 'メール'],
-  ['住所', '住所'], ['郵便', '郵便'], ['ふりがな', 'かな'], ['フリガナ', 'カナ'],
-]
 
-function labelFor(text: string, all: Field[]): string | undefined {
+function labelFor(text: string, all: Field[], cfg: SpeakfillConfig): string | undefined {
   const fields = all.filter((f) => f.kind !== 'checkbox')   // checkbox はラベル＝値（「箱」でチェック）
   const exact = fields.find((f) => f.label && f.label === text)
   if (exact) return exact.label
-  const syn = SYNONYMS.find(([spoken]) => spoken === text)
-  if (syn) return fields.find((f) => f.label.includes(syn[1]))?.label
+  const syn = cfg.synonyms.find((x) => x.spoken === text)
+  if (syn) return fields.find((f) => f.label.includes(syn.label))?.label
   // 「発売」→「発売月」のような前方一致。2 文字以上で、候補が 1 つだけのとき
   if (text.length >= 2) {
     const pre = fields.filter((f) => f.label.startsWith(text))
@@ -30,16 +25,16 @@ function labelFor(text: string, all: Field[]): string | undefined {
   return undefined
 }
 
-export function applyContext(chunks: Chunk[], fields: Field[], ctx: Context, now: number): { chunks: Chunk[]; direct: Placement[] } {
+export function applyContext(chunks: Chunk[], fields: Field[], ctx: Context, now: number, cfg: SpeakfillConfig = DEFAULT_CONFIG): { chunks: Chunk[]; direct: Placement[] } {
   const out: Chunk[] = []
   const direct: Placement[] = []
   for (const c of chunks) {
-    const label = labelFor(c.text, fields)
+    const label = labelFor(c.text, fields, cfg)
     if (label) { ctx.hint = label; continue }
 
     const last = ctx.last
     const lastField = last && fields.find((f) => f.id === last.fieldId)
-    if (NUMERIC.test(c.text) && last && lastField && NUMERIC_FIELD.test(lastField.label) && now - last.at <= CONTINUE_MS) {
+    if (NUMERIC.test(c.text) && last && lastField && matchesAny(cfg.continuationLabels, lastField.label) && now - last.at <= cfg.continueMs) {
       const chunk = `${last.chunk} ${c.text}`
       direct.push({ fieldId: lastField.id, value: normalize(chunk, lastField.label), chunk, confidence: 1 })
       ctx.last = { fieldId: lastField.id, chunk, at: now }
@@ -66,15 +61,15 @@ export function checkFormat(value: string, label: string): FormatCheck {
 }
 
 // 型ごとの正規化 + 検証（core/format.ts）を通してから書く
-export function gate(placements: Placement[], fields: Field[], ctx: Context, now: number) {
+export function gate(placements: Placement[], fields: Field[], ctx: Context, now: number, cfg: SpeakfillConfig = DEFAULT_CONFIG) {
   const apply: Placement[] = [], pending: Placement[] = [], rejected: Placement[] = [], labelish: Placement[] = []
   for (const p0 of placements) {
     const field = fields.find((f) => f.id === p0.fieldId)
-    const c = field && !field.options?.length ? coerce(p0.value, field, now) : { value: p0.value, status: 'ok' as const }
+    const c = field && !field.options?.length ? coerce(p0.value, field, now, cfg) : { value: p0.value, status: 'ok' as const }
     const p = { ...p0, value: c.value }
     if (c.status === 'invalid') {
       // 数値・日付欄に数字を含まない値 = 欄名を読んだだけ（「たかさ」）。形式不正ではなく次の値のヒントにする
-      const t = field && effectiveType(field)
+      const t = field && effectiveType(field, cfg)
       if (field && t && t !== 'email' && t !== 'url' && t !== 'color' && !/[\d０-９]/.test(p.value) && !/今日|明日|昨日|正午/.test(p.value)) { ctx.hint = field.label; ctx.last = undefined; labelish.push(p); continue }
       rejected.push(p); ctx.last = undefined; continue
     }

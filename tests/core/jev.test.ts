@@ -1,4 +1,6 @@
-import { buildQuestions, optionQuestion, THRESHOLD } from '../../src/core/jev'
+import { buildQuestions, optionQuestion } from '../../src/core/jev'
+import { DEFAULT_CONFIG, resolveConfig } from '../../src/core/config'
+import { JA_COMMERCE } from '../../src/core/presets'
 import type { Field } from '../../src/core/types'
 
 const fields: Field[] = [
@@ -32,7 +34,7 @@ test('state に欄と chunk と filled が入り、ページ本文は含まな�
   expect(Object.keys(state).sort()).toEqual(['chunks', 'fields', 'filled', 'recent'])
 })
 
-test('閾値', () => expect(THRESHOLD).toBe(0.5))
+test('閾値', () => expect(DEFAULT_CONFIG.threshold).toBe(0.5))
 
 test('type 付きの欄は criteria に type を書く（Jev が日付欄と分かるように）', () => {
   const typed: Field[] = [{ id: 'buy', label: '購入日', kind: 'text', type: 'date' }]
@@ -46,7 +48,7 @@ test('価格/重量/数量 の欄は criteria に単位を書く（「100円」�
     { id: 'weight', label: '重量', kind: 'text' },
     { id: 'qty', label: '数量', kind: 'text', type: 'number' },
   ]
-  const { questions } = buildQuestions(typed, [{ text: '100円' }], {})
+  const { questions } = buildQuestions(typed, [{ text: '100円' }], {}, [], resolveConfig(JA_COMMERCE))
   expect(questions.c0.criteria.price).toContain('円')
   expect(questions.c0.criteria.weight).toContain('g')
   expect(questions.c0.criteria.qty).toContain('個')
@@ -56,4 +58,12 @@ test('直前の発話（recent）を state に入れ、instructions で参照さ
   const { state, questions } = buildQuestions(fields, [{ text: '20' }], {}, ['幅100 高さ100'])
   expect((state as { recent: string[] }).recent).toEqual(['幅100 高さ100'])
   expect(questions.c0.instructions).toContain('recent')
+})
+
+test('設定の instructions（ドメイン説明）が欄選択・選択肢選択の両方の instructions 末尾に付く', () => {
+  const cfg = resolveConfig({ instructions: 'これは中古ブランドバッグの買取フォーム。「ランク」は状態ランク。' })
+  const { questions } = buildQuestions(fields, [{ text: 'A' }], {}, [], cfg)
+  expect(questions.c0.instructions).toContain('買取フォーム')
+  expect(optionQuestion(0, fields[1], cfg).instructions).toContain('買取フォーム')
+  expect(buildQuestions(fields, [{ text: 'A' }], {}).questions.c0.instructions).not.toContain('買取')
 })

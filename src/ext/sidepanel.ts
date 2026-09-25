@@ -3,6 +3,7 @@ import { pipeline, type RouteInput, type RouteResult, type Trace } from '../core
 import { startSpeech, type SpeechHandle } from '../web/speech'
 import type { Field, JevAsk } from '../core/types'
 import { TraceLog } from '../web/tracelog'
+import type { SpeakfillConfig } from '../core/config'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const toggle = $<HTMLButtonElement>('toggle'), undoBtn = $<HTMLButtonElement>('undo')
@@ -41,6 +42,7 @@ const ask: JevAsk = async (state, questions) => {
 
 // オプションでサーバ URL が設定されていれば /route に投げる（キーはサーバ側、トレースはサーバのファイルにも残る）
 let serverUrl = ''
+let config: Partial<SpeakfillConfig> | undefined   // オプションの語彙・ヒント設定
 async function remoteRoute(input: RouteInput): Promise<RouteResult> {
   const res = await fetch(`${serverUrl}/route`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) })
   const body = await res.json()
@@ -49,7 +51,7 @@ async function remoteRoute(input: RouteInput): Promise<RouteResult> {
 }
 
 const host: Host = {
-  fields: () => toTab({ type: 'collect' }) as Promise<Field[]>,
+  fields: () => toTab({ type: 'collect', opts: { excludeLabels: config?.excludeLabels, maxFields: config?.maxFields } }) as Promise<Field[]>,
   apply: (placement) => toTab({ type: 'apply', placement }) as Promise<{ fieldId: string; prev: string } | null>,
   restore: async (fieldId, prev) => { await toTab({ type: 'restore', fieldId, prev }) },
   route: (input) => (serverUrl ? remoteRoute(input) : pipeline(input, ask)),
@@ -93,8 +95,10 @@ function onEvent(ev: EngineEvent) {
   undoBtn.disabled = !engine.canUndo
 }
 
-void chrome.storage.local.get('serverUrl').then(({ serverUrl: u }) => {
+void chrome.storage.local.get(['serverUrl', 'speakfillConfig']).then(({ serverUrl: u, speakfillConfig }) => {
   serverUrl = (u ?? '') as string
+  config = (speakfillConfig ?? undefined) as Partial<SpeakfillConfig> | undefined
+  engine.config = config
   $('build').textContent = `build ${__BUILD__} / ${serverUrl ? `サーバ経由 ${serverUrl}` : 'BYOK 直接'}（古ければ chrome://extensions で 🔄）`
 })
 const engine = new Engine(host, onEvent)

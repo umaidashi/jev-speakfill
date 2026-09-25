@@ -1,6 +1,7 @@
 import { segment } from './segment'
 import { applyContext, gate, type Context } from './context'
 import { coerce } from './format'
+import { resolveConfig, type SpeakfillConfig } from './config'
 import { route } from './route'
 import type { Answer, Chunk, Field, JevAsk, Placement, Question } from './types'
 
@@ -12,6 +13,7 @@ export type RouteInput = {
   ctx: Context                      // 発話をまたぐ文脈（呼び出し側が持ち回る）
   now: number
   recent?: string[]                 // 直前の発話（古い順、最大 3 件）。Jev の state に入れる
+  config?: Partial<SpeakfillConfig> // 語彙・閾値・ドメイン説明（core/config.ts）。省略時は DEFAULT
 }
 export type RouteResult = {
   apply: Placement[]
@@ -45,10 +47,11 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
     jev.push({ state, questions, answers, ms: Date.now() - t0 })
     return answers
   }
-  const seg = segment(input.text, true, input.fields)
-  const { chunks, direct } = applyContext(seg, input.fields, ctx, input.now)
-  const routed = chunks.length ? await route(input.fields, chunks, input.filled, askTraced, input.recent ?? []) : []
-  const g = gate([...direct, ...routed], input.fields, ctx, input.now)
+  const cfg = resolveConfig(input.config)
+  const seg = segment(input.text, true, input.fields, cfg)
+  const { chunks, direct } = applyContext(seg, input.fields, ctx, input.now, cfg)
+  const routed = chunks.length ? await route(input.fields, chunks, input.filled, askTraced, input.recent ?? [], cfg) : []
+  const g = gate([...direct, ...routed], input.fields, ctx, input.now, cfg)
   // 「町 100」: Jev が「町」を欄名（マチ）と判断したら、同じ発話の直後の数字 chunk をその欄に直接入れる
   for (const lp of g.labelish) {
     const i = chunks.findIndex((c) => c.text === lp.chunk)
@@ -56,7 +59,7 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
     const field = input.fields.find((f) => f.id === lp.fieldId)
     if (i < 0 || !next || !field || !/^[\d０-９]/.test(next.text)) continue
     if ([...g.apply, ...g.pending].some((p) => p.chunk === next.text)) continue
-    const c = coerce(next.text, field, input.now)
+    const c = coerce(next.text, field, input.now, cfg)
     const p: Placement = { fieldId: field.id, value: c.value, chunk: next.text, confidence: lp.confidence }
     if (c.status === 'ok') g.apply.push(p); else if (c.status === 'short') g.pending.push(p); else g.rejected.push(p)
     ctx.hint = undefined

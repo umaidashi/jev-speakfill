@@ -1,4 +1,7 @@
 import { coerce } from '../../src/core/format'
+import { resolveConfig } from '../../src/core/config'
+import { JA_COMMERCE } from '../../src/core/presets'
+const CFG = resolveConfig(JA_COMMERCE)
 import type { Field } from '../../src/core/types'
 
 const NOW = Date.UTC(2026, 8, 25, 3, 0)   // 2026-09-25 12:00 JST
@@ -99,11 +102,13 @@ test('number: 単位付き（円/グラム/個）は数値だけにする', () =
   ok('500グラム', f('number'), '500')
   ok('3個', f('number'), '3')
 })
-test('type が無くてもラベルが 価格/金額/重量/数量 なら number として扱う', () => {
-  ok('100円', f('', { type: undefined, label: '価格' }), '100')
-  ok('1,200円', f('', { type: undefined, label: '金額（税込）' }), '1200')
-  ok('250グラム', f('', { type: undefined, label: '重量' }), '250')
-  bad('赤', f('', { type: undefined, label: '価格' }))
+test('type が無くても設定の numericLabels（価格/金額/重量…）に合うラベルは number として扱う。DEFAULT では verbatim', () => {
+  const c = (t: string, label: string) => coerce(t, f('', { type: undefined, label }), NOW, CFG)
+  expect(c('100円', '価格')).toEqual({ value: '100', status: 'ok' })
+  expect(c('1,200円', '金額（税込）')).toEqual({ value: '1200', status: 'ok' })
+  expect(c('250グラム', '重量')).toEqual({ value: '250', status: 'ok' })
+  expect(c('赤', '価格').status).toBe('invalid')
+  expect(coerce('100円', f('', { type: undefined, label: '価格' }), NOW)).toEqual({ value: '100円', status: 'ok' })   // DEFAULT
 })
 
 test('number: 万・億・千を展開する', () => {

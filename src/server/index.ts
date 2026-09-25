@@ -1,6 +1,7 @@
 // サンプル backend: POST /route（Jev はここからだけ呼ぶ）+ dist/web の静的配信
 import { createServer } from 'node:http'
 import { readFile, appendFile, mkdir } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { handleRoute } from './handler'
 import { callJev } from '../ext/jevClient'
@@ -10,6 +11,9 @@ const port = Number(process.env.PORT ?? 8787)
 const webDir = join(process.cwd(), 'dist', 'web')
 const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.map': 'application/json' }
 const logFile = process.env.TRACE_LOG ?? 'logs/traces.jsonl'   // 発話ごとの Trace を 1 行ずつ追記（tail -f で追える）
+// 語彙・ヒントの設定（core/config.ts の SpeakfillConfig を JSON で）。無ければ DEFAULT（日本語一般の最小）
+const configFile = process.env.SPEAKFILL_CONFIG ?? 'speakfill.config.json'
+const baseConfig = existsSync(configFile) ? JSON.parse(await readFile(configFile, 'utf8')) : {}
 await mkdir('logs', { recursive: true })
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
 
@@ -18,7 +22,7 @@ createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/route') {
     let body = ''
     for await (const chunk of req) body += chunk
-    const r = await handleRoute(body, (s, q) => callJev(key, s, q))
+    const r = await handleRoute(body, (s, q) => callJev(key, s, q), baseConfig)
     res.writeHead(r.status, { 'Content-Type': 'application/json', ...cors }).end(JSON.stringify(r.body))
     if (r.status === 200) {
       const t = r.body.trace
@@ -37,4 +41,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404).end('not found')
   }
-}).listen(port, () => console.log(`http://localhost:${port}  (Jev key: ${key ? 'set' : 'MISSING — .env を確認'}, trace → ${logFile})`))
+}).listen(port, () => console.log(`http://localhost:${port}  (Jev key: ${key ? 'set' : 'MISSING — .env を確認'}, trace → ${logFile}, config: ${existsSync(configFile) ? configFile : 'DEFAULT'})`))

@@ -1,6 +1,7 @@
 import type { Context } from './context'
 import type { RouteInput, RouteResult, Trace } from './pipeline'
 import type { Field, Placement } from './types'
+import type { SpeakfillConfig } from './config'
 
 // ホストが差し込む 4 関数。DOM / chrome API / HTTP はすべてこの外
 export type Host = {
@@ -30,7 +31,7 @@ export class Engine {
   private recent: string[] = []   // 直前の発話（Jev に文脈として渡す）
   private queue: Promise<void> = Promise.resolve()
 
-  constructor(private host: Host, private emit: (ev: EngineEvent) => void, private now: () => number = Date.now) {}
+  constructor(private host: Host, private emit: (ev: EngineEvent) => void, private now: () => number = Date.now, public config?: Partial<SpeakfillConfig>) {}
 
   get canUndo() { return this.undoStack.length > 0 }
 
@@ -47,7 +48,7 @@ export class Engine {
       this.fields = await this.host.fields()   // SPA 対策: 発話ごとに取り直す（id は要素ごとに安定）
       const alive = new Set(this.fields.map((f) => f.id))
       this.filled = Object.fromEntries(Object.entries(this.filled).filter(([id]) => alive.has(id)))
-      r = await this.host.route({ fields: this.fields, text, filled: this.filled, ctx: this.ctx, now: this.now(), recent: [...this.recent] })
+      r = await this.host.route({ fields: this.fields, text, filled: this.filled, ctx: this.ctx, now: this.now(), recent: [...this.recent], config: this.config })
       this.recent = [...this.recent, text].slice(-3)
     } catch (e) {
       this.emit({ type: 'error', message: e instanceof Error ? e.message : String(e), text })

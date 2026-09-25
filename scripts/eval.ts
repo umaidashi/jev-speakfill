@@ -6,6 +6,9 @@ import { route } from '../src/core/route.ts'
 import { applyContext, gate, type Context } from '../src/core/context.ts'
 import { callJev } from '../src/ext/jevClient.ts'
 import type { Answer, Field, JevAsk } from '../src/core/types.ts'
+import { resolveConfig } from '../src/core/config.ts'
+import { JA_COMMERCE } from '../src/core/presets.ts'
+const CFG = resolveConfig(JA_COMMERCE)
 
 const key = process.env.TYPESAFE_API_KEY ?? ''
 const NOW = Date.UTC(2026, 8, 25, 3)   // 日付ケースを固定するため 2026-09-25 JST
@@ -23,10 +26,10 @@ for (const c of fx.cases) {
     return a
   }
   const ctx: Context = { hint: undefined, last: undefined }
-  const chunks0 = segment(c.text, true, fx.fields)
-  const { chunks, direct } = applyContext(chunks0, fx.fields, ctx, NOW)
-  const placements = [...direct, ...(chunks.length ? await route(fx.fields, chunks, {}, ask) : [])]
-  const g = gate(placements, fx.fields, ctx, NOW)
+  const chunks0 = segment(c.text, true, fx.fields, CFG)
+  const { chunks, direct } = applyContext(chunks0, fx.fields, ctx, NOW, CFG)
+  const placements = [...direct, ...(chunks.length ? await route(fx.fields, chunks, {}, ask, [], CFG) : [])]
+  const g = gate(placements, fx.fields, ctx, NOW, CFG)
   const got = Object.fromEntries(g.apply.map((p) => [p.fieldId, p.value]))
   const keys = new Set([...Object.keys(c.expect), ...Object.keys(got)])
   let ok = true

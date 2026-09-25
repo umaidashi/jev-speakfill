@@ -5,11 +5,16 @@ import { applyPlacement, collectFields, restore } from '../dom'
 import { startSpeech, type SpeechHandle } from './speech'
 import type { RouteResult } from '../core/pipeline'
 import { TraceLog, localStorageStore } from './tracelog'
+import type { SpeakfillConfig } from '../core/config'
 
-const endpoint = (document.currentScript as HTMLScriptElement | null)?.dataset.endpoint ?? '/route'
+const script = document.currentScript as HTMLScriptElement | null
+const endpoint = script?.dataset.endpoint ?? '/route'
+// 語彙・ヒント設定: <script data-config='{...}'> か window.speakfillConfig。無ければサーバ側の設定だけ
+let config: Partial<SpeakfillConfig> | undefined
+try { config = script?.dataset.config ? JSON.parse(script.dataset.config) : (window as any).speakfillConfig } catch { config = undefined }
 
 const host: Host = {
-  fields: async () => collectFields(document),
+  fields: async () => collectFields(document, { excludeLabels: config?.excludeLabels, maxFields: config?.maxFields }),
   apply: async (p) => applyPlacement(p),
   restore: async (id, prev) => restore(id, prev),
   route: async (input) => {
@@ -62,7 +67,7 @@ function onEvent(ev: EngineEvent) {
   }
   undoBtn.disabled = !engine.canUndo
 }
-const engine = new Engine(host, onEvent)
+const engine = new Engine(host, onEvent, Date.now, config)
 let speech: SpeechHandle | null = null
 undoBtn.onclick = () => engine.undo()
 fab.onclick = () => {
