@@ -55,3 +55,41 @@ test('数字以外の chunk はそのまま通す', () => {
   const r = applyContext([{ text: '青' }], fields, ctx, 500)
   expect(r.chunks).toEqual([{ text: '青' }])
 })
+
+import { checkFormat, gate } from '../../src/core/context'
+
+test('checkFormat: 電話は 10〜11 桁、郵便は 7 桁。短い/長い/対象外を区別する', () => {
+  expect(checkFormat('080-0001-0023', '電話番号')).toBe('ok')
+  expect(checkFormat('03-1234-5678', '電話番号')).toBe('ok')
+  expect(checkFormat('080', '電話番号')).toBe('short')
+  expect(checkFormat('08-0111-1111112222', '電話番号')).toBe('invalid')
+  expect(checkFormat('100-0001', '郵便番号')).toBe('ok')
+  expect(checkFormat('100', '郵便番号')).toBe('short')
+  expect(checkFormat('10000012', '郵便番号')).toBe('invalid')
+  expect(checkFormat('田中', '氏名')).toBe('na')
+})
+
+test('gate: ok は apply、short は pending（書かずに続きを待つ）、invalid は rejected', () => {
+  const ctx = fresh()
+  const p = (fieldId: string, value: string, chunk = value) => ({ fieldId, value, chunk, confidence: 0.9 })
+  const g = gate([p('tel', '080'), p('zip', '10000012'), p('name', '田中')], fields, ctx, 100)
+  expect(g.apply).toEqual([p('name', '田中')])
+  expect(g.pending).toEqual([p('tel', '080')])
+  expect(g.rejected).toEqual([p('zip', '10000012')])
+  expect(ctx.last).toEqual({ fieldId: 'name', chunk: '田中', at: 100 })   // 最後に処理した配置
+})
+
+test('pending の数字欄は ctx.last に残り、続きが来たら連結して ok になる', () => {
+  const ctx = fresh()
+  gate([{ fieldId: 'tel', value: '080', chunk: '080', confidence: 0.9 }], fields, ctx, 0)
+  expect(ctx.last).toEqual({ fieldId: 'tel', chunk: '080', at: 0 })
+  const r = applyContext([{ text: '-0001 0023' }], fields, ctx, 1500)
+  const g = gate(r.direct, fields, ctx, 1500)
+  expect(g.apply).toEqual([{ fieldId: 'tel', value: '080-0001-0023', chunk: '080 -0001 0023', confidence: 1 }])
+})
+
+test('数字 chunk の先頭ハイフンは落として Jev に渡す', () => {
+  const ctx = fresh()
+  const r = applyContext([{ text: '-1800003' }], fields, ctx, 0)
+  expect(r.chunks).toEqual([{ text: '1800003' }])
+})

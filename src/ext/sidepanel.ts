@@ -1,6 +1,6 @@
 import { segment } from '../core/segment'
 import { route } from '../core/route'
-import { applyContext, type Context } from '../core/context'
+import { applyContext, gate, type Context } from '../core/context'
 import type { Field, JevAsk, Placement } from '../core/types'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -63,7 +63,10 @@ async function onFinal(text: string) {
     placements = chunks.length ? await route(fields, chunks, filled, ask) : []
     // 連結された chunk（「山田 太郎」）は部分一致で配置済み扱い（ログ用のゆるい判定）
     for (const c of chunks) if (!placements.some((p) => p.chunk.includes(c.text))) addLog(`未配置: ${c.text}`, 'none')
-    placements = [...direct, ...placements]
+    const g = gate([...direct, ...placements], fields, ctx, Date.now())
+    for (const p of g.pending) addLog(`${fields.find((f) => f.id === p.fieldId)?.label}: ${p.value}（桁が足りません。続きを待っています）`, 'none')
+    for (const p of g.rejected) addLog(`${fields.find((f) => f.id === p.fieldId)?.label}: ${p.value}（形式不正のため未入力）`, 'err')
+    placements = g.apply
   } catch (e) {
     addLog(`エラー: ${(e as Error).message} — 「${text}」は未配置`, 'err')
     return
@@ -73,7 +76,6 @@ async function onFinal(text: string) {
     const label = fields.find((f) => f.id === p.fieldId)?.label ?? p.fieldId
     if (!r) { addLog(`書き込み失敗: ${label} ← ${p.value}`, 'none'); continue }
     filled[p.fieldId] = p.value
-    if (p.confidence < 1) ctx.last = { fieldId: p.fieldId, chunk: p.chunk, at: Date.now() }   // direct（連結）は applyContext 側で更新済み
     undoStack.push({ ...r, label })
     undoBtn.disabled = false
     addLog(`${label} ← `, '', p.value, `(${p.confidence.toFixed(2)})`)

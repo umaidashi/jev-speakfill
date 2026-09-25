@@ -38,8 +38,33 @@ export function applyContext(chunks: Chunk[], fields: Field[], ctx: Context, now
       continue
     }
 
-    out.push(ctx.hint && !c.hint ? { ...c, hint: ctx.hint } : c)
+    const text = NUMERIC.test(c.text) ? c.text.replace(/^[-ー－\s]+/, '') : c.text
+    out.push(ctx.hint && !c.hint ? { ...c, text, hint: ctx.hint } : { ...c, text })
     ctx.hint = undefined
   }
   return { chunks: out, direct }
+}
+
+export type FormatCheck = 'ok' | 'short' | 'invalid' | 'na'
+
+// 桁数だけで判定する。書く前に短い（続き待ち）/長い（不正）を分ける
+export function checkFormat(value: string, label: string): FormatCheck {
+  const n = value.replace(/[^\d０-９]/g, '').length
+  const range = /郵便|〒/.test(label) ? [7, 7] : /電話|TEL|tel|携帯|FAX/.test(label) ? [10, 11] : null
+  if (!range) return 'na'
+  if (n < range[0]) return 'short'
+  if (n > range[1]) return 'invalid'
+  return 'ok'
+}
+
+export function gate(placements: Placement[], fields: Field[], ctx: Context, now: number) {
+  const apply: Placement[] = [], pending: Placement[] = [], rejected: Placement[] = []
+  for (const p of placements) {
+    const label = fields.find((f) => f.id === p.fieldId)?.label ?? ''
+    const fc = checkFormat(p.value, label)
+    if (fc === 'invalid') { rejected.push(p); ctx.last = undefined; continue }
+    if (fc === 'short') pending.push(p); else apply.push(p)
+    ctx.last = { fieldId: p.fieldId, chunk: p.chunk, at: now }
+  }
+  return { apply, pending, rejected }
 }
