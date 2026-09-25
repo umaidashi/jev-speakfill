@@ -14,7 +14,7 @@
 ```
 [side panel]  mic → Web Speech (ja-JP, interim) ─┐
                                                   ▼
-[core]  segment() → chunks → route(fields, chunks, ask) → Placement[]
+[core]  segment() → Chunk[] → route(fields, chunks, ask) → Placement[]
                                                   ▲            │
 [content script]  collectFields() ────────────────┘   apply(Placement) / undo
 [service worker]  ask(): Jev API 呼び出し（キーはここだけ）
@@ -34,11 +34,12 @@ type Field = {
   kind: 'text' | 'select' | 'radio' | 'checkbox'
   options?: string[]              // select/radio/checkbox の表示ラベル
 }
+type Chunk = { text: string; hint?: string }   // hint = 剥がした欄ラベル語
 type Placement = { fieldId: string; value: string; chunk: string; confidence: number }
 type JevAsk = (state: unknown, questions: Record<string, Question>) => Promise<Record<string, Answer>>
 
-segment(prevFinal: string, text: string, isFinal: boolean): string[]
-route(fields: Field[], chunks: string[], ask: JevAsk): Promise<Placement[]>
+segment(prevFinal: string, text: string, isFinal: boolean): Chunk[]
+route(fields: Field[], chunks: Chunk[], ask: JevAsk): Promise<Placement[]>
 ```
 
 ### segment（コード側、Jev 不使用）
