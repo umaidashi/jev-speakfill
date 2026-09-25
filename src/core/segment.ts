@@ -115,6 +115,18 @@ function isLabelWord(text: string, fields: Field[]): boolean {
   return fields.some((f) => f.label === text) || SYNONYMS.some(([spoken]) => spoken === text)
 }
 
+// 「幅50高さ60町200」のように「語+数字」が 2 対以上連続する chunk を対に割る。
+// 語が欄ラベルならそのラベルを、違えば発話語をそのまま hint にする（「町」→ マチ は Jev の読み判断に任せる）
+const PAIR = /([^\d０-９\s]+?)([\d０-９][\d０-９.,万億千]*(?:[a-zA-Z]+|センチ|ミリ|円|個|枚|点|グラム|キロ)?)/gu
+function splitPairs(text: string, fields: Field[]): Chunk[] | null {
+  const pairs = [...text.matchAll(PAIR)]
+  if (pairs.length < 2 || pairs.map((m) => m[0]).join('') !== text) return null
+  return pairs.map(([, word, num]) => {
+    const f = fields.find((f) => bareLabel(f.label) === word || f.label === word)
+    return { text: num, hint: f ? f.label : word }
+  })
+}
+
 export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[] {
   if (!isFinal) return []
   const ps = particleSplitter(fields)
@@ -128,7 +140,7 @@ export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[
     })
     .map((part) => part.replace(TRAIL, ''))
     .filter((part) => part.length > 0 && !PARTICLES.has(part))   // 「の」だけの chunk は捨てる
-    .map((part) => stripHint(part, fields))
+    .flatMap((part) => splitPairs(part, fields) ?? [stripHint(part, fields)])
     .filter((c) => c.text.length > 0)
     .flatMap((c) => {
       // 欄名だけ・数字・否定はそのまま。それ以外は単語に割り、2 語目以降に glue を付ける

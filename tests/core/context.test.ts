@@ -125,3 +125,11 @@ test('checkbox のラベルと同じ chunk は値（チェック）であって�
   expect(r.chunks).toEqual([{ text: '箱' }])
   expect(ctx.hint).toBeUndefined()
 })
+
+test('gate: 数値欄に数字を含まない値（「たかさ」= 欄名の読み）が来たら、形式不正ではなく次の値のヒントにする', () => {
+  const ctx = fresh()
+  const typed: Field[] = [{ id: 'h', label: '高さ (cm)', kind: 'text', type: 'number' }]
+  const g = gate([{ fieldId: 'h', value: 'たかさ', chunk: 'たかさ', confidence: 0.9 }], typed, ctx, 0)
+  expect(g.apply).toEqual([]); expect(g.rejected).toEqual([])
+  expect(ctx.hint).toBe('高さ (cm)')
+})

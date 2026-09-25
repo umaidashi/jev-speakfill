@@ -50,3 +50,11 @@ test('trace に文字起こしから配置までの全段階が残る', async ()
   expect(t.gate.apply.map((p) => p.value)).toEqual(['赤'])
   expect(t.gate.pending.map((p) => p.value)).toEqual(['080'])
 })
+
+test('欄名だけの発話が Jev 経由で数値欄に落ちた場合も hint として返る', async () => {
+  const typed: Field[] = [{ id: 'h', label: '高さ (cm)', kind: 'text', type: 'number' }]
+  const ask2: JevAsk = async (_s, q) => Object.fromEntries(Object.keys(q).map((id) => [id, answer('h')]))
+  const r = await pipeline({ fields: typed, text: 'たかさ', filled: {}, ctx: fresh(), now: 0 }, ask2)
+  expect(r.hint).toBe('高さ (cm)')
+  expect(r.rejected).toEqual([])
+})

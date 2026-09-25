@@ -157,6 +157,16 @@
       }
     },
     {
+      "id": "d",
+      "label": "マチ (cm)",
+      "kind": "text",
+      "type": "number",
+      "constraints": {
+        "min": "0",
+        "step": "0.5"
+      }
+    },
+    {
       "id": "serial",
       "label": "シリアル・製造番号",
       "kind": "text"
@@ -383,6 +393,26 @@
         "brand": "kate spade new york",
         "category": "トートバッグ"
       }
+    },
+    {
+      "text": "幅50 高さ60町200",
+      "expect": {
+        "w": "50",
+        "h": "60",
+        "d": "200"
+      }
+    },
+    {
+      "text": "幅30高さ25マチ12",
+      "expect": {
+        "w": "30",
+        "h": "25",
+        "d": "12"
+      }
+    },
+    {
+      "text": "たかさ",
+      "expect": {}
     }
   ]
 }

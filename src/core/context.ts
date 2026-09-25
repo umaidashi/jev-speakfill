@@ -1,5 +1,5 @@
 import { normalize } from './normalize'
-import { coerce } from './format'
+import { coerce, effectiveType } from './format'
 import type { Chunk, Field, Placement } from './types'
 
 // 発話をまたぐ文脈。即時配置はそのままに、「欄名だけ」「番号の続き」を後から解釈する
@@ -72,7 +72,12 @@ export function gate(placements: Placement[], fields: Field[], ctx: Context, now
     const field = fields.find((f) => f.id === p0.fieldId)
     const c = field && !field.options?.length ? coerce(p0.value, field, now) : { value: p0.value, status: 'ok' as const }
     const p = { ...p0, value: c.value }
-    if (c.status === 'invalid') { rejected.push(p); ctx.last = undefined; continue }
+    if (c.status === 'invalid') {
+      // 数値・日付欄に数字を含まない値 = 欄名を読んだだけ（「たかさ」）。形式不正ではなく次の値のヒントにする
+      const t = field && effectiveType(field)
+      if (field && t && t !== 'email' && t !== 'url' && t !== 'color' && !/[\d０-９]/.test(p.value) && !/今日|明日|昨日|正午/.test(p.value)) { ctx.hint = field.label; ctx.last = undefined; continue }
+      rejected.push(p); ctx.last = undefined; continue
+    }
     if (c.status === 'short') pending.push(p); else apply.push(p)
     ctx.last = { fieldId: p.fieldId, chunk: p.chunk, at: now }
   }

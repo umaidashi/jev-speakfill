@@ -141,6 +141,15 @@ describe('ブランドバッグ想定', () => {
     expect(segment('ゴールド金具', true, f2)).toEqual([{ text: 'ゴールド', hint: '金具の色' }])
     expect(segment('ゴールド', true, f2)).toEqual([{ text: 'ゴールド' }])
   })
+  test('「ラベル+数字」が連続する chunk は対に割る。STT の同音誤変換（町=マチ）は発話語をそのまま hint にして Jev に任せる', () => {
+    const f2: Field[] = [...bag, { id: 'h', label: '高さ (cm)', kind: 'text', type: 'number' }, { id: 'd', label: 'マチ (cm)', kind: 'text', type: 'number' }]
+    expect(segment('幅50 高さ60町200', true, f2)).toEqual([
+      { text: '50', hint: '幅 (cm)' }, { text: '60', hint: '高さ (cm)' }, { text: '200', hint: '町' },
+    ])
+    expect(segment('幅50高さ60マチ20', true, f2)).toEqual([
+      { text: '50', hint: '幅 (cm)' }, { text: '60', hint: '高さ (cm)' }, { text: '20', hint: 'マチ (cm)' },
+    ])
+  })
   test('ラベル語の直後に数字が続けば助詞なしでも hint にする（幅32センチ / 仕入れ値12万円）', () => {
     expect(segment('幅32センチ、高さ29、仕入れ値12万円、販売価格15万8000円', true, bag)).toEqual([
       { text: '32センチ', hint: '幅 (cm)' }, { text: '高さ29' }, { text: '12万円', hint: '仕入れ値' }, { text: '15万8000円', hint: '販売価格' },

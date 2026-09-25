@@ -53,5 +53,7 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
     at: input.now, text: input.text, filled: { ...input.filled }, ctxBefore: { ...input.ctx },
     segment: seg, context: { chunks, direct }, jev, routed, gate: g,
   }
-  return { ...g, unplaced, hint: chunks.length === 0 && direct.length === 0 ? ctx.hint : undefined, ctx, trace }
+  // hint を返すのは「欄名だけの発話」のとき（chunk が無い、または gate で欄名扱いになった）
+  const hint = ctx.hint && ctx.hint !== input.ctx.hint ? ctx.hint : chunks.length === 0 && direct.length === 0 ? ctx.hint : undefined
+  return { ...g, unplaced, hint, ctx, trace }
 }
