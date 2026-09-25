@@ -96,7 +96,10 @@ function start() {
     interimEl.textContent = interim
   }
   rec.onerror = (ev) => {
-    if (FATAL.has(ev.error)) stop(`音声エラー: ${ev.error}（マイク許可を確認）`)
+    if (ev.error === 'not-allowed') {
+      stop('マイクが未許可です。許可ページを開きました')
+      void chrome.tabs.create({ url: chrome.runtime.getURL('grant.html') })
+    } else if (FATAL.has(ev.error)) stop(`音声エラー: ${ev.error}`)
     else status.textContent = `音声エラー: ${ev.error}`
   }
   rec.onend = () => { if (listening) start() }

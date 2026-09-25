@@ -7,6 +7,7 @@ await build({
     content: 'src/ext/content.ts',
     sidepanel: 'src/ext/sidepanel.ts',
     options: 'src/ext/options.ts',
+    grant: 'src/ext/grant.ts',
   },
   bundle: true, format: 'esm', outdir: 'dist', target: 'chrome116', sourcemap: true,
 })
