@@ -31,7 +31,7 @@ Chrome 拡張は `chrome://extensions` で `dist/` を読み込み、オプシ�
 - [docs/usage.md](docs/usage.md) — 使い方（拡張 / web / サーバ）、語彙・ヒントの設定、自分のアプリへの組み込み、権限とデータ
 - [docs/design.md](docs/design.md) — 設計。処理の流れ、コードと Jev の分担、アーキテクチャ、既知の弱点、トレース、設計判断
 - [docs/eval/latest.md](docs/eval/latest.md) — 実 API での評価結果（発話 → 各段階 → 配置、現在 66/66）
-- [docs/research/](docs/research/) — 競合調査、[docs/superpowers/](docs/superpowers/) — 着手時の spec と plan
+- [docs/archive/](docs/archive/) — 経緯（競合調査、着手時の spec と plan）。更新しない
 
 ## 構成
 - `src/core/` — `config`（語彙・閾値）/ `presets` / `segment`（chunk 化）/ `context`（発話をまたぐ文脈・検証ゲート）/ `format`（型ごとの正規化）/ `jev`（質問生成）/ `route`（採否）/ `pipeline`（全段階）/ `engine`（状態機械）
