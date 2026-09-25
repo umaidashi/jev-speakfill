@@ -1,5 +1,6 @@
 import { buildQuestions, NONE, THRESHOLD, optionQuestion } from './jev'
 import { normalize } from './normalize'
+import { effectiveType } from './format'
 import type { Chunk, Field, JevAsk, Placement, Question } from './types'
 
 export async function route(fields: Field[], chunks: Chunk[], filled: Record<string, string>, ask: JevAsk, recent: string[] = []): Promise<Placement[]> {
@@ -17,6 +18,7 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
   const optAnswers = Object.keys(optQ).length ? await ask(state, optQ) : {}
   const out: Placement[] = []
   const optConf = new Map<Placement, number>()
+  const merged = new Map<Placement, number>()   // 連結した語数
   chunks.forEach((chunk, i) => {
     const field = chosen[i]
     if (!field) return
@@ -38,11 +40,16 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
       value = normalize(chunk.text, field.label)
     }
     const last = out[out.length - 1]
-    // 「山田 太郎」のように STT が 1 つの値を空白で割ったとき、隣接 chunk が同じ text 欄なら連結する
-    if (last && last.fieldId === field.id && !field.options?.length) {
+    // 「山田 太郎」のように STT が 1 つの値を空白で割ったとき、隣接 chunk が同じ text 欄なら連結する。
+    // 数値・日付欄は連結しない（「町」「100」→「町 100」にすると数値にならない）
+    if (last && last.fieldId === field.id && !field.options?.length && !effectiveType(field)) {
       const joined = chunk.glue ? `${last.chunk}${chunk.text}` : `${last.chunk} ${chunk.text}`
-      last.value = normalize(joined, field.label)
-      last.chunk = joined
+      const n = (merged.get(last) ?? 1) + 1
+      merged.set(last, n)
+      // 断片の全単語が同じ欄に向いたら、助詞込みの元の文をそのまま使う（「底面に傷あり」）
+      const whole = chunk.src && chunk.srcN === n ? chunk.src : joined
+      last.value = normalize(whole, field.label)
+      last.chunk = whole
       last.confidence = Math.min(last.confidence, a.confidence)
       return
     }

@@ -1,5 +1,6 @@
 import { segment } from './segment'
 import { applyContext, gate, type Context } from './context'
+import { coerce } from './format'
 import { route } from './route'
 import type { Answer, Chunk, Field, JevAsk, Placement, Question } from './types'
 
@@ -47,8 +48,22 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
   const seg = segment(input.text, true, input.fields)
   const { chunks, direct } = applyContext(seg, input.fields, ctx, input.now)
   const routed = chunks.length ? await route(input.fields, chunks, input.filled, askTraced, input.recent ?? []) : []
-  const unplaced = chunks.filter((c) => !routed.some((p) => p.chunk.includes(c.text))).map((c) => c.text)
   const g = gate([...direct, ...routed], input.fields, ctx, input.now)
+  // 「町 100」: Jev が「町」を欄名（マチ）と判断したら、同じ発話の直後の数字 chunk をその欄に直接入れる
+  for (const lp of g.labelish) {
+    const i = chunks.findIndex((c) => c.text === lp.chunk)
+    const next = chunks[i + 1]
+    const field = input.fields.find((f) => f.id === lp.fieldId)
+    if (i < 0 || !next || !field || !/^[\d０-９]/.test(next.text)) continue
+    if ([...g.apply, ...g.pending].some((p) => p.chunk === next.text)) continue
+    const c = coerce(next.text, field, input.now)
+    const p: Placement = { fieldId: field.id, value: c.value, chunk: next.text, confidence: lp.confidence }
+    if (c.status === 'ok') g.apply.push(p); else if (c.status === 'short') g.pending.push(p); else g.rejected.push(p)
+    ctx.hint = undefined
+    ctx.last = { fieldId: field.id, chunk: next.text, at: input.now }
+  }
+  const placedChunks = [...g.apply, ...g.pending, ...g.rejected, ...g.labelish].map((p) => p.chunk)
+  const unplaced = chunks.filter((c) => !placedChunks.some((t) => t.includes(c.text))).map((c) => c.text)
   const trace: Trace = {
     at: input.now, text: input.text, filled: { ...input.filled }, ctxBefore: { ...input.ctx },
     segment: seg, context: { chunks, direct }, jev, routed, gate: g,

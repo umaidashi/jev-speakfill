@@ -97,3 +97,16 @@ test('隣接 chunk が同じ選択肢欄に向いたら confidence の高い方�
   }))
   expect(r).toEqual([{ fieldId: 'cond', value: '未使用に近い', chunk: 'ほぼ', confidence: 0.93 }])
 })
+
+test('数値・日付欄には隣接 chunk を連結しない（町 + 100 を「町 100」にしない）', async () => {
+  const f: Field[] = [{ id: 'd', label: 'マチ (cm)', kind: 'text', type: 'number' }]
+  const r = await route(f, [{ text: '町' }, { text: '100' }], {}, fakeAsk({ c0: answer('d', 0.7), c1: answer('d', 0.8) }))
+  expect(r.map((p) => p.value)).toEqual(['町', '100'])
+})
+
+test('1 つの発話断片の全単語が同じ自由記述欄に向いたら、元の文をそのまま値にする（底面に傷あり）', async () => {
+  const f: Field[] = [{ id: 'note', label: '備考', kind: 'text' }]
+  const src = '底面に傷あり'
+  const r = await route(f, [{ text: '底面', src, srcN: 2 }, { text: '傷あり', glue: true, src, srcN: 2 }], {}, fakeAsk({ c0: answer('note'), c1: answer('note') }))
+  expect(r).toEqual([{ fieldId: 'note', value: '底面に傷あり', chunk: '底面に傷あり', confidence: 0.9 }])
+})

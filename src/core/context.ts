@@ -67,7 +67,7 @@ export function checkFormat(value: string, label: string): FormatCheck {
 
 // 型ごとの正規化 + 検証（core/format.ts）を通してから書く
 export function gate(placements: Placement[], fields: Field[], ctx: Context, now: number) {
-  const apply: Placement[] = [], pending: Placement[] = [], rejected: Placement[] = []
+  const apply: Placement[] = [], pending: Placement[] = [], rejected: Placement[] = [], labelish: Placement[] = []
   for (const p0 of placements) {
     const field = fields.find((f) => f.id === p0.fieldId)
     const c = field && !field.options?.length ? coerce(p0.value, field, now) : { value: p0.value, status: 'ok' as const }
@@ -75,11 +75,11 @@ export function gate(placements: Placement[], fields: Field[], ctx: Context, now
     if (c.status === 'invalid') {
       // 数値・日付欄に数字を含まない値 = 欄名を読んだだけ（「たかさ」）。形式不正ではなく次の値のヒントにする
       const t = field && effectiveType(field)
-      if (field && t && t !== 'email' && t !== 'url' && t !== 'color' && !/[\d０-９]/.test(p.value) && !/今日|明日|昨日|正午/.test(p.value)) { ctx.hint = field.label; ctx.last = undefined; continue }
+      if (field && t && t !== 'email' && t !== 'url' && t !== 'color' && !/[\d０-９]/.test(p.value) && !/今日|明日|昨日|正午/.test(p.value)) { ctx.hint = field.label; ctx.last = undefined; labelish.push(p); continue }
       rejected.push(p); ctx.last = undefined; continue
     }
     if (c.status === 'short') pending.push(p); else apply.push(p)
     ctx.last = { fieldId: p.fieldId, chunk: p.chunk, at: now }
   }
-  return { apply, pending, rejected }
+  return { apply, pending, rejected, labelish }   // labelish: 欄名扱いにした chunk（呼び出し側が直後の数字を当てる）
 }

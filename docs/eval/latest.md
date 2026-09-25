@@ -1,4 +1,4 @@
-# eval 結果 (2026-09-25T09:09)
+# eval 結果 (2026-09-25T09:15)
 
 欄: ブランド[Louis Vuitton/CHANEL/HERMÈS/GUCCI/PRADA/CELINE/DIOR/FENDI/Bottega Veneta/BALENCIAGA/LOEWE/Saint Laurent/BURBERRY/MIU MIU/GOYARD/Chloé/GIVENCHY/VALENTINO/COACH/MICHAEL KORS/kate spade new york/FURLA/Tory Burch/LONGCHAMP/その他] / カテゴリ[ハンドバッグ/ショルダーバッグ/トートバッグ/ボストンバッグ/クラッチバッグ/リュック/ウエストバッグ/ポーチ/財布] / ライン・モデル名 / 素材[レザー/キャンバス/ナイロン/エキゾチックレザー/デニム/PVC/スエード] / 色[黒/白/ベージュ/茶/赤/ピンク/青/緑/グレー/ゴールド/シルバー/マルチカラー] / 金具の色[ゴールド/シルバー/ピンクゴールド/ガンメタ/ブラック/金具なし] / 状態ランク[S（新品・未使用）/A（未使用に近い）/B（目立った傷や汚れなし）/C（やや傷や汚れあり）/D（傷や汚れあり）/E（全体的に状態が悪い）] / 箱[箱] / 保存袋[保存袋] / ギャランティカード[ギャランティカード] / 幅 (cm) / 高さ (cm) / マチ (cm) / シリアル・製造番号 / 仕入日 / 仕入れ値 / 販売価格 / 備考 / 氏名 / 電話番号 / 郵便番号 / 都道府県[東京都/大阪府/北海道/福岡県]
 
@@ -7,7 +7,7 @@
 - ① segment → [{"text":"ルイヴィトン"},{"text":"ネヴァーフル"},{"text":"トート"},{"text":"黒"}]
 - ② context → chunks [{"text":"ルイヴィトン"},{"text":"ネヴァーフル"},{"text":"トート"},{"text":"黒"}]
 - ③ Jev 1 往復目 → c0→ブランド (1.00), c1→ライン・モデル名 (0.99), c2→カテゴリ (0.99), c3→色 (1.00)
-- ③ Jev 2 往復目 → c0_brand→Louis Vuitton (1.00), c2_category→トートバッグ (0.99), c3_color→黒 (0.99)
+- ③ Jev 2 往復目 → c0_brand→Louis Vuitton (1.00), c2_category→トートバッグ (0.99), c3_color→黒 (0.98)
 - ④ gate → apply ブランド=Louis Vuitton, ライン・モデル名=ネヴァーフル, カテゴリ=トートバッグ, 色=黒
 - 期待 → ブランド=Louis Vuitton, ライン・モデル名=ネヴァーフル, カテゴリ=トートバッグ, 色=黒
 
@@ -15,8 +15,8 @@
 
 - ① segment → [{"text":"ヴィトン"},{"text":"モノグラム"},{"text":"ショルダー"},{"text":"茶色"}]
 - ② context → chunks [{"text":"ヴィトン"},{"text":"モノグラム"},{"text":"ショルダー"},{"text":"茶色"}]
-- ③ Jev 1 往復目 → c0→ブランド (1.00), c1→ライン・モデル名 (0.98), c2→カテゴリ (1.00), c3→色 (0.99)
-- ③ Jev 2 往復目 → c0_brand→Louis Vuitton (0.99), c2_category→ショルダーバッグ (0.99), c3_color→茶 (0.97)
+- ③ Jev 1 往復目 → c0→ブランド (1.00), c1→ライン・モデル名 (0.98), c2→カテゴリ (1.00), c3→色 (1.00)
+- ③ Jev 2 往復目 → c0_brand→Louis Vuitton (0.99), c2_category→ショルダーバッグ (0.99), c3_color→茶 (0.98)
 - ④ gate → apply ブランド=Louis Vuitton, ライン・モデル名=モノグラム, カテゴリ=ショルダーバッグ, 色=茶
 - 期待 → ブランド=Louis Vuitton, ライン・モデル名=モノグラム, カテゴリ=ショルダーバッグ, 色=茶
 
@@ -24,7 +24,7 @@
 
 - ① segment → [{"text":"ボッテガ"},{"text":"イントレチャート"},{"text":"レザー"},{"text":"ブラック"}]
 - ② context → chunks [{"text":"ボッテガ"},{"text":"イントレチャート"},{"text":"レザー"},{"text":"ブラック"}]
-- ③ Jev 1 往復目 → c0→ブランド (0.98), c1→ライン・モデル名 (0.97), c2→素材 (0.99), c3→色 (0.96)
+- ③ Jev 1 往復目 → c0→ブランド (0.98), c1→ライン・モデル名 (0.95), c2→素材 (0.99), c3→色 (0.98)
 - ③ Jev 2 往復目 → c0_brand→Bottega Veneta (0.99), c2_material→レザー (1.00), c3_color→黒 (0.98)
 - ④ gate → apply ブランド=Bottega Veneta, ライン・モデル名=イントレチャート, 素材=レザー, 色=黒
 - 期待 → ブランド=Bottega Veneta, ライン・モデル名=イントレチャート, 素材=レザー, 色=黒
@@ -34,7 +34,7 @@
 - ① segment → [{"text":"シャネル"},{"text":"マトラッセ"},{"text":"ラムスキン"},{"text":"ほぼ新品"}]
 - ② context → chunks [{"text":"シャネル"},{"text":"マトラッセ"},{"text":"ラムスキン"},{"text":"ほぼ新品"}]
 - ③ Jev 1 往復目 → c0→ブランド (1.00), c1→ライン・モデル名 (1.00), c2→素材 (1.00), c3→状態ランク (1.00)
-- ③ Jev 2 往復目 → c0_brand→CHANEL (1.00), c2_material→レザー (0.96), c3_cond→A（未使用に近い） (0.62)
+- ③ Jev 2 往復目 → c0_brand→CHANEL (1.00), c2_material→レザー (0.95), c3_cond→A（未使用に近い） (0.77)
 - ④ gate → apply ブランド=CHANEL, ライン・モデル名=マトラッセ, 素材=レザー, 状態ランク=A（未使用に近い）
 - 期待 → ブランド=CHANEL, ライン・モデル名=マトラッセ, 素材=レザー, 状態ランク=A（未使用に近い）
 
@@ -42,8 +42,8 @@
 
 - ① segment → [{"text":"エルメス"},{"text":"バーキン30"},{"text":"トゴ"}]
 - ② context → chunks [{"text":"エルメス"},{"text":"バーキン30"},{"text":"トゴ"}]
-- ③ Jev 1 往復目 → c0→ブランド (1.00), c1→ライン・モデル名 (1.00), c2→素材 (0.99)
-- ③ Jev 2 往復目 → c0_brand→HERMÈS (0.99), c2_material→レザー (0.89)
+- ③ Jev 1 往復目 → c0→ブランド (0.99), c1→ライン・モデル名 (1.00), c2→素材 (0.99)
+- ③ Jev 2 往復目 → c0_brand→HERMÈS (0.99), c2_material→レザー (0.90)
 - ④ gate → apply ブランド=HERMÈS, ライン・モデル名=バーキン30, 素材=レザー
 - 期待 → ブランド=HERMÈS, ライン・モデル名=バーキン30, 素材=レザー
 
@@ -51,8 +51,8 @@
 
 - ① segment → [{"text":"サンローラン"},{"text":"キャンバス"},{"text":"ベージュ"},{"text":"傷あり"}]
 - ② context → chunks [{"text":"サンローラン"},{"text":"キャンバス"},{"text":"ベージュ"},{"text":"傷あり"}]
-- ③ Jev 1 往復目 → c0→ブランド (0.98), c1→素材 (1.00), c2→色 (0.99), c3→状態ランク (0.99)
-- ③ Jev 2 往復目 → c0_brand→Saint Laurent (0.99), c1_material→キャンバス (0.99), c2_color→ベージュ (0.98), c3_cond→D（傷や汚れあり） (0.86)
+- ③ Jev 1 往復目 → c0→ブランド (0.97), c1→素材 (0.99), c2→色 (1.00), c3→状態ランク (0.99)
+- ③ Jev 2 往復目 → c0_brand→Saint Laurent (0.99), c1_material→キャンバス (0.99), c2_color→ベージュ (0.98), c3_cond→D（傷や汚れあり） (0.89)
 - ④ gate → apply ブランド=Saint Laurent, 素材=キャンバス, 色=ベージュ, 状態ランク=D（傷や汚れあり）
 - 期待 → ブランド=Saint Laurent, 素材=キャンバス, 色=ベージュ, 状態ランク=D（傷や汚れあり）
 
@@ -60,17 +60,17 @@
 
 - ① segment → [{"text":"新品ではない"}]
 - ② context → chunks [{"text":"新品ではない"}]
-- ③ Jev 1 往復目 → c0→状態ランク (0.93)
-- ③ Jev 2 往復目 → c0_cond→none (0.65)
+- ③ Jev 1 往復目 → c0→状態ランク (0.92)
+- ③ Jev 2 往復目 → c0_cond→none (0.62)
 - ④ gate → apply (なし)
 - 期待 → (なし)
 
 ## ✅ 「箱と保存袋あり」
 
-- ① segment → [{"text":"箱"},{"text":"保存袋あり","glue":true}]
-- ② context → chunks [{"text":"箱"},{"text":"保存袋あり","glue":true}]
+- ① segment → [{"text":"箱","src":"箱と保存袋あり","srcN":2},{"text":"保存袋あり","glue":true,"src":"箱と保存袋あり","srcN":2}]
+- ② context → chunks [{"text":"箱","src":"箱と保存袋あり","srcN":2},{"text":"保存袋あり","glue":true,"src":"箱と保存袋あり","srcN":2}]
 - ③ Jev 1 往復目 → c0→箱 (0.99), c1→保存袋 (0.99)
-- ③ Jev 2 往復目 → c0_acc-box→箱 (1.00), c1_acc-bag→保存袋 (0.98)
+- ③ Jev 2 往復目 → c0_acc-box→箱 (0.99), c1_acc-bag→保存袋 (0.98)
 - ④ gate → apply 箱=箱, 保存袋=保存袋
 - 期待 → 箱=箱, 保存袋=保存袋
 
@@ -100,26 +100,26 @@
 
 ## ✅ 「赤革ルイヴィトン」
 
-- ① segment → [{"text":"赤"},{"text":"革","glue":true},{"text":"ルイヴィトン","glue":true}]
-- ② context → chunks [{"text":"赤"},{"text":"革","glue":true},{"text":"ルイヴィトン","glue":true}]
-- ③ Jev 1 往復目 → c0→色 (0.98), c1→素材 (0.99), c2→ブランド (0.99)
+- ① segment → [{"text":"赤","src":"赤革ルイヴィトン","srcN":3},{"text":"革","glue":true,"src":"赤革ルイヴィトン","srcN":3},{"text":"ルイヴィトン","glue":true,"src":"赤革ルイヴィトン","srcN":3}]
+- ② context → chunks [{"text":"赤","src":"赤革ルイヴィトン","srcN":3},{"text":"革","glue":true,"src":"赤革ルイヴィトン","srcN":3},{"text":"ルイヴィトン","glue":true,"src":"赤革ルイヴィトン","srcN":3}]
+- ③ Jev 1 往復目 → c0→色 (1.00), c1→素材 (0.99), c2→ブランド (1.00)
 - ③ Jev 2 往復目 → c0_color→赤 (1.00), c1_material→レザー (0.98), c2_brand→Louis Vuitton (0.99)
 - ④ gate → apply 色=赤, 素材=レザー, ブランド=Louis Vuitton
 - 期待 → 色=赤, 素材=レザー, ブランド=Louis Vuitton
 
 ## ✅ 「えーっと、ちょっと待ってください」
 
-- ① segment → [{"text":"えーっと"},{"text":"ちょっと待って"},{"text":"ください","glue":true}]
-- ② context → chunks [{"text":"えーっと"},{"text":"ちょっと待って"},{"text":"ください","glue":true}]
-- ③ Jev 1 往復目 → c0→none (0.99), c1→none (0.99), c2→none (0.99)
+- ① segment → [{"text":"えーっと"},{"text":"ちょっと待ってください"}]
+- ② context → chunks [{"text":"えーっと"},{"text":"ちょっと待ってください"}]
+- ③ Jev 1 往復目 → c0→none (0.99), c1→none (0.99)
 - ④ gate → apply (なし)
 - 期待 → (なし)
 
 ## ✅ 「山田太郎、090 1234 5678、東京都」
 
-- ① segment → [{"text":"山田"},{"text":"太郎","glue":true},{"text":"090 1234 5678"},{"text":"東京都"}]
-- ② context → chunks [{"text":"山田"},{"text":"太郎","glue":true},{"text":"090 1234 5678"},{"text":"東京都"}]
-- ③ Jev 1 往復目 → c0→氏名 (1.00), c1→氏名 (1.00), c2→電話番号 (0.99), c3→都道府県 (0.99)
+- ① segment → [{"text":"山田","src":"山田太郎","srcN":2},{"text":"太郎","glue":true,"src":"山田太郎","srcN":2},{"text":"090 1234 5678"},{"text":"東京都"}]
+- ② context → chunks [{"text":"山田","src":"山田太郎","srcN":2},{"text":"太郎","glue":true,"src":"山田太郎","srcN":2},{"text":"090 1234 5678"},{"text":"東京都"}]
+- ③ Jev 1 往復目 → c0→氏名 (0.99), c1→氏名 (0.99), c2→電話番号 (0.98), c3→都道府県 (0.99)
 - ③ Jev 2 往復目 → c3_pref→東京都 (0.99)
 - ④ gate → apply 氏名=山田太郎, 電話番号=090-1234-5678, 都道府県=東京都
 - 期待 → 氏名=山田太郎, 電話番号=090-1234-5678, 都道府県=東京都
@@ -136,16 +136,16 @@
 
 - ① segment → [{"text":"エルメス"},{"text":"バーキン30"},{"text":"トゴ"},{"text":"ゴールド","hint":"金具の色"}]
 - ② context → chunks [{"text":"エルメス"},{"text":"バーキン30"},{"text":"トゴ"},{"text":"ゴールド","hint":"金具の色"}]
-- ③ Jev 1 往復目 → c0→ブランド (0.99), c1→ライン・モデル名 (1.00), c2→素材 (0.99), c3→金具の色 (1.00)
-- ③ Jev 2 往復目 → c0_brand→HERMÈS (0.99), c2_material→レザー (0.90), c3_hardware→ゴールド (0.99)
+- ③ Jev 1 往復目 → c0→ブランド (1.00), c1→ライン・モデル名 (1.00), c2→素材 (0.99), c3→金具の色 (1.00)
+- ③ Jev 2 往復目 → c0_brand→HERMÈS (0.99), c2_material→レザー (0.88), c3_hardware→ゴールド (1.00)
 - ④ gate → apply ブランド=HERMÈS, ライン・モデル名=バーキン30, 素材=レザー, 金具の色=ゴールド
 - 期待 → ブランド=HERMÈS, ライン・モデル名=バーキン30, 素材=レザー, 金具の色=ゴールド
 
 ## ✅ 「金具はシルバー、本体は黒、ランクA」
 
-- ① segment → [{"text":"シルバー","hint":"金具の色"},{"text":"本体"},{"text":"黒","glue":true},{"text":"ランクA"}]
-- ② context → chunks [{"text":"シルバー","hint":"金具の色"},{"text":"本体"},{"text":"黒","glue":true},{"text":"ランクA"}]
-- ③ Jev 1 往復目 → c0→金具の色 (1.00), c1→none (0.27), c2→色 (0.96), c3→状態ランク (0.99)
+- ① segment → [{"text":"シルバー","hint":"金具の色"},{"text":"本体","src":"本体は黒","srcN":2},{"text":"黒","glue":true,"src":"本体は黒","srcN":2},{"text":"ランクA"}]
+- ② context → chunks [{"text":"シルバー","hint":"金具の色"},{"text":"本体","src":"本体は黒","srcN":2},{"text":"黒","glue":true,"src":"本体は黒","srcN":2},{"text":"ランクA"}]
+- ③ Jev 1 往復目 → c0→金具の色 (1.00), c1→色 (0.49), c2→色 (1.00), c3→状態ランク (1.00)
 - ③ Jev 2 往復目 → c0_hardware→シルバー (1.00), c2_color→黒 (0.99), c3_cond→A（未使用に近い） (0.97)
 - ④ gate → apply 金具の色=シルバー, 色=黒, 状態ランク=A（未使用に近い）
 - 期待 → 金具の色=シルバー, 色=黒, 状態ランク=A（未使用に近い）
@@ -161,10 +161,10 @@
 
 ## ✅ 「新品未使用、ピンクゴールドの金具」
 
-- ① segment → [{"text":"新品"},{"text":"未","glue":true},{"text":"使用","glue":true},{"text":"ピンクゴールド","hint":"金具の色"}]
-- ② context → chunks [{"text":"新品"},{"text":"未","glue":true},{"text":"使用","glue":true},{"text":"ピンクゴールド","hint":"金具の色"}]
-- ③ Jev 1 往復目 → c0→状態ランク (0.99), c1→状態ランク (0.98), c2→状態ランク (0.98), c3→金具の色 (1.00)
-- ③ Jev 2 往復目 → c0_cond→S（新品・未使用） (0.97), c1_cond→A（未使用に近い） (0.30), c2_cond→S（新品・未使用） (0.62), c3_hardware→ピンクゴールド (1.00)
+- ① segment → [{"text":"新品","src":"新品未使用","srcN":3},{"text":"未","glue":true,"src":"新品未使用","srcN":3},{"text":"使用","glue":true,"src":"新品未使用","srcN":3},{"text":"ピンクゴールド","hint":"金具の色"}]
+- ② context → chunks [{"text":"新品","src":"新品未使用","srcN":3},{"text":"未","glue":true,"src":"新品未使用","srcN":3},{"text":"使用","glue":true,"src":"新品未使用","srcN":3},{"text":"ピンクゴールド","hint":"金具の色"}]
+- ③ Jev 1 往復目 → c0→状態ランク (0.99), c1→状態ランク (0.90), c2→状態ランク (0.94), c3→金具の色 (1.00)
+- ③ Jev 2 往復目 → c0_cond→S（新品・未使用） (0.97), c1_cond→S（新品・未使用） (0.32), c2_cond→S（新品・未使用） (0.66), c3_hardware→ピンクゴールド (1.00)
 - ④ gate → apply 状態ランク=S（新品・未使用）, 金具の色=ピンクゴールド
 - 期待 → 状態ランク=S（新品・未使用）, 金具の色=ピンクゴールド
 
@@ -181,7 +181,7 @@
 
 - ① segment → [{"text":"クロエ"},{"text":"マーシー"}]
 - ② context → chunks [{"text":"クロエ"},{"text":"マーシー"}]
-- ③ Jev 1 往復目 → c0→ブランド (0.99), c1→ライン・モデル名 (0.97)
+- ③ Jev 1 往復目 → c0→ブランド (0.99), c1→ライン・モデル名 (0.98)
 - ③ Jev 2 往復目 → c0_brand→Chloé (0.98)
 - ④ gate → apply ブランド=Chloé, ライン・モデル名=マーシー
 - 期待 → ブランド=Chloé, ライン・モデル名=マーシー
@@ -191,7 +191,7 @@
 - ① segment → [{"text":"ケイトスペード"},{"text":"トート"}]
 - ② context → chunks [{"text":"ケイトスペード"},{"text":"トート"}]
 - ③ Jev 1 往復目 → c0→ブランド (1.00), c1→カテゴリ (0.99)
-- ③ Jev 2 往復目 → c0_brand→kate spade new york (0.98), c1_category→トートバッグ (1.00)
+- ③ Jev 2 往復目 → c0_brand→kate spade new york (0.99), c1_category→トートバッグ (0.99)
 - ④ gate → apply ブランド=kate spade new york, カテゴリ=トートバッグ
 - 期待 → ブランド=kate spade new york, カテゴリ=トートバッグ
 
@@ -199,7 +199,7 @@
 
 - ① segment → [{"text":"50","hint":"幅 (cm)"},{"text":"60","hint":"高さ (cm)"},{"text":"200","hint":"町"}]
 - ② context → chunks [{"text":"50","hint":"幅 (cm)"},{"text":"60","hint":"高さ (cm)"},{"text":"200","hint":"町"}]
-- ③ Jev 1 往復目 → c0→幅 (cm) (1.00), c1→高さ (cm) (1.00), c2→マチ (cm) (0.80)
+- ③ Jev 1 往復目 → c0→幅 (cm) (1.00), c1→高さ (cm) (1.00), c2→マチ (cm) (0.95)
 - ④ gate → apply 幅 (cm)=50, 高さ (cm)=60, マチ (cm)=200
 - 期待 → 幅 (cm)=50, 高さ (cm)=60, マチ (cm)=200
 
@@ -227,4 +227,29 @@
 - ④ gate → apply 仕入れ値=20000
 - 期待 → 仕入れ値=20000
 
-**一致 62/62**
+## ✅ 「幅は200 高さ200 町 100」
+
+- ① segment → [{"text":"200","hint":"幅 (cm)"},{"text":"200","hint":"高さ (cm)"},{"text":"町"},{"text":"100"}]
+- ② context → chunks [{"text":"200","hint":"幅 (cm)"},{"text":"200","hint":"高さ (cm)"},{"text":"町"},{"text":"100"}]
+- ③ Jev 1 往復目 → c0→幅 (cm) (0.99), c1→高さ (cm) (0.99), c2→マチ (cm) (0.80), c3→マチ (cm) (0.72)
+- ④ gate → apply 幅 (cm)=200, 高さ (cm)=200, マチ (cm)=100
+- 期待 → 幅 (cm)=200, 高さ (cm)=200, マチ (cm)=100
+
+## ✅ 「仕入れ日は 昨日」
+
+- ① segment → [{"text":"仕入日"},{"text":"昨日"}]
+- ② context → chunks [{"text":"昨日","hint":"仕入日"}]
+- ③ Jev 1 往復目 → c0→仕入日 (0.99)
+- ④ gate → apply 仕入日=2026-09-24
+- 期待 → 仕入日=2026-09-24
+
+## ❌ 「底面に傷あり」
+
+- ① segment → [{"text":"底面","src":"底面に傷あり","srcN":2},{"text":"傷あり","glue":true,"src":"底面に傷あり","srcN":2}]
+- ② context → chunks [{"text":"底面","src":"底面に傷あり","srcN":2},{"text":"傷あり","glue":true,"src":"底面に傷あり","srcN":2}]
+- ③ Jev 1 往復目 → c0→備考 (0.61), c1→状態ランク (0.87)
+- ③ Jev 2 往復目 → c1_cond→D（傷や汚れあり） (0.92)
+- ④ gate → apply 備考=底面, 状態ランク=D（傷や汚れあり）
+- 期待 → 備考=底面に傷あり
+
+**一致 66/68**

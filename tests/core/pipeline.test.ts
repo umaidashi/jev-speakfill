@@ -58,3 +58,19 @@ test('欄名だけの発話が Jev 経由で数値欄に落ちた場合も hint 
   expect(r.hint).toBe('高さ (cm)')
   expect(r.rejected).toEqual([])
 })
+
+test('欄名だけの chunk（町 = マチ）を Jev が欄に当てたら、直後の数字 chunk はその欄に直接入れる（Jev を追加で呼ばない）', async () => {
+  const typed: Field[] = [
+    { id: 'w', label: '幅 (cm)', kind: 'text', type: 'number' },
+    { id: 'd', label: 'マチ (cm)', kind: 'text', type: 'number' },
+  ]
+  const ask2: JevAsk = async (_s, q) => Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0' ? answer('w') : id === 'c1' ? answer('d', 0.7) : answer('none', 0.2)]))
+  const r = await pipeline({ fields: typed, text: '幅は200 町 100', filled: {}, ctx: fresh(), now: 0 }, ask2)
+  expect(r.apply).toEqual([
+    { fieldId: 'w', value: '200', chunk: '200', confidence: 0.9 },
+    { fieldId: 'd', value: '100', chunk: '100', confidence: 0.7 },
+  ])
+  expect(r.rejected).toEqual([])
+  expect(r.unplaced).toEqual([])
+  expect(r.ctx.hint).toBeUndefined()   // 使い切ったヒントは残さない
+})

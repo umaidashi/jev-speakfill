@@ -1,4 +1,8 @@
-import { segment } from '../../src/core/segment'
+import { segment as segmentRaw } from '../../src/core/segment'
+import type { Chunk } from '../../src/core/types'
+
+// src/srcN は route 用の付加情報なので、ここでは text/hint/glue だけを見る
+const segment = (text: string, isFinal: boolean, f: Field[]): Chunk[] => segmentRaw(text, isFinal, f).map(({ src, srcN, ...c }) => c)
 import type { Field } from '../../src/core/types'
 
 const fields: Field[] = [
@@ -80,6 +84,7 @@ test('終助詞と衝突する名前を削らない（あかね・みさと・�
   expect(segment('あかね、みさと、ちよ', true, fields)).toEqual([{ text: 'あかね' }, { text: 'みさと' }, { text: 'ちよ' }])
   expect(segment('名前はみさと', true, fields)).toEqual([{ text: 'みさと', hint: '氏名' }])
   expect(segment('佐藤あかね', true, fields)).toEqual([{ text: '佐藤あかね' }])
+  expect(segment('高知ゆうご', true, fields)).toEqual([{ text: '高知ゆうご' }])   // 高知ゆう|ご も戻す
 })
 
 test('ラベル語付きでも空白区切りの数字を 1 chunk に結合する', () => {
@@ -136,6 +141,16 @@ describe('ブランドバッグ想定', () => {
     expect(segment('箱と保存袋あり', true, bag)).toEqual([{ text: '箱' }, { text: '保存袋あり', glue: true }])
     expect(segment('赤革', true, bag)).toEqual([{ text: '赤' }, { text: '革', glue: true }])
   })
+  test('送り仮名の違い（仕入れ日 vs 仕入日）を無視してラベルに合わせる。「〜は」で終わる語は欄名そのものに正規化', () => {
+    const f2: Field[] = [...bag, { id: 'buy', label: '仕入日', kind: 'text', type: 'date' }]
+    expect(segment('仕入れ日は昨日', true, f2)).toEqual([{ text: '昨日', hint: '仕入日' }])
+    expect(segment('仕入れ日は 昨日', true, f2)).toEqual([{ text: '仕入日' }, { text: '昨日' }])
+  })
+  test('先頭がラベル語（2 文字以上、助詞なし）でも hint にする（ブランドコーチ → ブランド: コーチ）', () => {
+    const f2: Field[] = [...bag, { id: 'brand', label: 'ブランド', kind: 'select', options: ['COACH'] }]
+    expect(segment('ブランドコーチ', true, f2)).toEqual([{ text: 'コーチ', hint: 'ブランド' }])
+    expect(segment('ブランド', true, f2)).toEqual([{ text: 'ブランド' }])
+  })
   test('末尾がラベル語（2 文字以上）なら後置の欄名として hint にする（ゴールド金具 → 金具の色）', () => {
     const f2: Field[] = [...bag, { id: 'hardware', label: '金具の色', kind: 'select', options: ['ゴールド', 'シルバー'] }]
     expect(segment('ゴールド金具', true, f2)).toEqual([{ text: 'ゴールド', hint: '金具の色' }])
@@ -155,4 +170,10 @@ describe('ブランドバッグ想定', () => {
       { text: '32センチ', hint: '幅 (cm)' }, { text: '高さ29' }, { text: '12万円', hint: '仕入れ値' }, { text: '15万8000円', hint: '販売価格' },
     ])
   })
+})
+
+test('単語分割した chunk は元の断片（src）と語数（srcN）を持つ', () => {
+  expect(segmentRaw('底面に傷あり', true, fields)).toEqual([
+    { text: '底面', src: '底面に傷あり', srcN: 2 }, { text: '傷あり', glue: true, src: '底面に傷あり', srcN: 2 },
+  ])
 })

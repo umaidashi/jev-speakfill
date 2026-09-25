@@ -32,7 +32,8 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
         `\`chunks[${i}].text\` は日本語フォームのどの入力欄に入れるべき値か。欄名は発話されないことが多い。${STT_NOTE}` +
         (chunk.hint ? `話者は欄名「${chunk.hint}」を明示した。強く考慮せよ。` : '') +
         `既に \`filled\` にある欄は、値の種類が明らかに一致するときだけ選べ。` +
-        `\`recent\` は直前の発話（古い順）。同じ発話内の他の chunk と recent から、この値が何の続きかを読み取れ。`,
+        `\`recent\` は直前の発話（古い順）。同じ発話内の他の chunk と recent から、この値が何の続きかを読み取れ。` +
+        `chunk が値ではなく欄名そのもの（読みが同じ誤変換を含む。例: 「町」= マチ）なら、その欄を選べ。`,
       criteria,
     }
   })

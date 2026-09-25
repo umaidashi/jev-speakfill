@@ -9,7 +9,13 @@ export type Field = {
   constraints?: { min?: string; max?: string; step?: string; maxLength?: number; pattern?: string }
 }
 
-export type Chunk = { text: string; hint?: string; glue?: boolean }  // glue: 直前の chunk と同じ発話断片から単語分割で生まれた（連結時は空白なし）
+export type Chunk = {
+  text: string
+  hint?: string
+  glue?: boolean   // 直前の chunk と同じ発話断片から単語分割で生まれた（連結時は空白なし）
+  src?: string     // 単語分割前の断片（全単語が同じ自由記述欄に向いたらこれを値にする）
+  srcN?: number    // src の語数
+}
 
 export type Placement = { fieldId: string; value: string; chunk: string; confidence: number }
 

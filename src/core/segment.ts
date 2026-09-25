@@ -28,11 +28,20 @@ function particleSplitter(fields: Field[]): RegExp | null {
 // 「幅 (cm)」→「幅」。ラベルの括弧書きは発話されない
 const bareLabel = (label: string) => label.replace(/[（(].*?[)）]/g, '').trim()
 
+// 送り仮名を無視した比較用（仕入れ日 → 仕入日）
+const okuriganaKey = (s: string) => s.replace(/[ぁ-ゖー]/g, '')
+
 function stripHint(text: string, fields: Field[]): Chunk {
+  // 「仕入れ日は」のように欄名 + 助詞だけ → 欄名そのものに正規化（context が次の値のヒントにする）
+  const only = /^(.{1,12}?)[はがで]$/.exec(text)
+  if (only) {
+    const f = fields.find((f) => bareLabel(f.label) === only[1] || (okuriganaKey(only[1]).length >= 2 && okuriganaKey(bareLabel(f.label)) === okuriganaKey(only[1])))
+    if (f) return { text: f.label }
+  }
   const m = /^(.{1,12}?)[はがで](.+)$/.exec(text)
   if (m) {
     const word = m[1]
-    const byLabel = fields.find((f) => f.label && (f.label.startsWith(word) || bareLabel(f.label) === word))
+    const byLabel = fields.find((f) => f.label && (f.label.startsWith(word) || bareLabel(f.label) === word || (okuriganaKey(word).length >= 2 && okuriganaKey(bareLabel(f.label)) === okuriganaKey(word))))
     const bySyn = SYNONYMS.find(([spoken]) => word === spoken)
     const target = byLabel ?? (bySyn && fields.find((f) => f.label.includes(bySyn[1])))
     if (target) return { text: m[2], hint: target.label }
@@ -41,6 +50,10 @@ function stripHint(text: string, fields: Field[]): Chunk {
   const labels = fields.map((f) => [bareLabel(f.label), f.label] as const).filter(([b]) => b.length > 0).sort((a, b) => b[0].length - a[0].length)
   for (const [bare, label] of labels) {
     if (text.length > bare.length && text.startsWith(bare) && /^[\d０-９]/.test(text.slice(bare.length))) return { text: text.slice(bare.length), hint: label }
+  }
+  // 先頭がラベル語そのもの（2 文字以上）で続きがある（「ブランドコーチ」）
+  for (const [bare, label] of labels) {
+    if (bare.length >= 2 && text.length > bare.length && text.startsWith(bare)) return { text: text.slice(bare.length), hint: label }
   }
   // 後置の欄名（「ゴールド金具」→ 金具の色）。ラベルの先頭 2 文字以上が末尾に付いている
   for (const [bare, label] of labels) {
@@ -82,7 +95,7 @@ const NEGATION = /(ない|なく|以外|じゃな|ではな)/
 function shouldMerge(prev: string, next: string, dict: string[]): boolean {
   if (KATAKANA.test(prev) && KATAKANA.test(next)) return true
   if (HIRAGANA.test(prev)) return true
-  if (/[一-龯々〆]$/.test(prev) && HIRAGANA.test(next)) return true   // 漢字で終わる語 + ひらがな（佐藤+あかね、やや傷+あり）
+  if (/[一-龯々〆ぁ-ゖー]$/.test(prev) && HIRAGANA.test(next)) return true   // 漢字/ひらがなで終わる語 + ひらがな（佐藤+あかね、やや傷+あり、高知ゆう+ご）
   const joined = prev + next
   return dict.some((d) => d === joined || d.startsWith(joined) || (joined.startsWith(d) && HIRAGANA.test(joined.slice(d.length))))
 }
@@ -145,6 +158,8 @@ export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[
     .flatMap((c) => {
       // 欄名だけ・数字・否定はそのまま。それ以外は単語に割り、2 語目以降に glue を付ける
       if (isLabelWord(c.text, fields) || !JAPANESE_ONLY.test(c.text) || HIRAGANA.test(c.text) || NEGATION.test(c.text)) return [c]
-      return words(c.text, dict).map((w, i) => (i === 0 ? { ...c, text: w } : { ...c, text: w, glue: true }))
+      const ws = words(c.text, dict)
+      if (ws.length === 1) return [{ ...c, text: ws[0] }]
+      return ws.map((w, i) => (i === 0 ? { ...c, text: w, src: c.text, srcN: ws.length } : { ...c, text: w, glue: true, src: c.text, srcN: ws.length }))
     })
 }
