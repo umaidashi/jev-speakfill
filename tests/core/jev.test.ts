@@ -39,3 +39,15 @@ test('type 付きの欄は criteria に type を書く（Jev が日付欄と分�
   const { questions } = buildQuestions(typed, [{ text: '9月25日' }], {})
   expect(questions.c0.criteria.buy).toBe('購入日 (text: date — 「9月25日」「今日」「来年の8月6日」のような日付)')
 })
+
+test('価格/重量/数量 の欄は criteria に単位を書く（「100円」「500グラム」から欄を選べるように）', () => {
+  const typed: Field[] = [
+    { id: 'price', label: '価格', kind: 'text', type: 'number' },
+    { id: 'weight', label: '重量', kind: 'text' },
+    { id: 'qty', label: '数量', kind: 'text', type: 'number' },
+  ]
+  const { questions } = buildQuestions(typed, [{ text: '100円' }], {})
+  expect(questions.c0.criteria.price).toContain('円')
+  expect(questions.c0.criteria.weight).toContain('g')
+  expect(questions.c0.criteria.qty).toContain('個')
+})

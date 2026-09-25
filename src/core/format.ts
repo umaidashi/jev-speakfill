@@ -59,10 +59,20 @@ const COLORS: Record<string, string> = {
   灰: '#808080', 灰色: '#808080', グレー: '#808080', 茶: '#a52a2a', 茶色: '#a52a2a', 紫: '#800080', ピンク: '#ffc0cb', オレンジ: '#ffa500', 紺: '#000080',
 }
 
+// HTML の type が無くても、ラベルから数値欄と分かるものは number として扱う（「100円」→ 100）
+export const NUMERIC_LABEL = /価格|金額|値段|料金|単価|重量|重さ|数量|個数|在庫|サイズ|寸法|高さ|幅|奥行|長さ/
+export const UNIT_BY_LABEL: [RegExp, string][] = [
+  [/価格|金額|値段|料金|単価/, '円'],
+  [/重量|重さ/, 'g/kg'],
+  [/サイズ|寸法|高さ|幅|奥行|長さ/, 'cm/mm'],
+  [/数量|個数|在庫/, '個/点/枚'],
+]
+export const effectiveType = (field: Field) => field.type ?? (NUMERIC_LABEL.test(field.label) ? 'number' : undefined)
+
 export function coerce(text: string, field: Field, now: number): Coerced {
   const c = field.constraints
   const t = text.trim()
-  switch (field.type) {
+  switch (effectiveType(field)) {
     case 'date': {
       const d = parseDate(t, now); if (!d) return invalid(t)
       const v = fmtDate(d); return inRange(v, c, (a, b) => a.localeCompare(b)) ? ok(v) : invalid(v)

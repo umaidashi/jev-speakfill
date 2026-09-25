@@ -86,3 +86,15 @@ test('text: pattern / maxLength', () => {
   ok('田中', f('text'), '田中')
 })
 test('week は対象外（invalid）', () => { bad('第39週', f('week')) })
+
+test('number: 単位付き（円/グラム/個）は数値だけにする', () => {
+  ok('100円', f('number'), '100')
+  ok('500グラム', f('number'), '500')
+  ok('3個', f('number'), '3')
+})
+test('type が無くてもラベルが 価格/金額/重量/数量 なら number として扱う', () => {
+  ok('100円', f('', { type: undefined, label: '価格' }), '100')
+  ok('1,200円', f('', { type: undefined, label: '金額（税込）' }), '1200')
+  ok('250グラム', f('', { type: undefined, label: '重量' }), '250')
+  bad('赤', f('', { type: undefined, label: '価格' }))
+})

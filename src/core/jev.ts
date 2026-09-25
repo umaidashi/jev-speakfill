@@ -1,4 +1,5 @@
 import type { Chunk, Field, Question } from './types'
+import { effectiveType, UNIT_BY_LABEL } from './format'
 
 export const THRESHOLD = 0.35
 export const NONE = 'none'
@@ -20,7 +21,9 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
   chunks.forEach((chunk, i) => {
     const criteria: Record<string, string> = {}
     for (const f of fields) {
-      criteria[f.id] = `${f.label || '(ラベルなし)'} (${f.kind}${f.options ? ': ' + f.options.join('/') : f.type ? ': ' + f.type + (TYPE_HINT[f.type] ?? '') : ''})`
+      const type = effectiveType(f)
+      const unit = UNIT_BY_LABEL.find(([re]) => re.test(f.label))?.[1]
+      criteria[f.id] = `${f.label || '(ラベルなし)'} (${f.kind}${f.options ? ': ' + f.options.join('/') : type ? ': ' + type + (TYPE_HINT[type] ?? '') : ''}${unit ? `、単位: ${unit}` : ''})`
     }
     criteria[NONE] = '雑談・指示・どの欄の値でもない'
     questions[`c${i}`] = {

@@ -88,6 +88,11 @@
       "label": "発売月",
       "kind": "text",
       "type": "month"
+    },
+    {
+      "id": "weight",
+      "label": "重量",
+      "kind": "text"
     }
   ],
   "cases": [
@@ -244,6 +249,13 @@
       "text": "今日",
       "expect": {
         "buy": "2026-09-25"
+      }
+    },
+    {
+      "text": "100円、250グラム",
+      "expect": {
+        "price": "100",
+        "weight": "250"
       }
     }
   ]
