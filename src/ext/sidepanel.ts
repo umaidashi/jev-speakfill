@@ -1,5 +1,6 @@
 import { segment } from '../core/segment'
 import { route } from '../core/route'
+import { applyContext, type Context } from '../core/context'
 import type { Field, JevAsk, Placement } from '../core/types'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -9,6 +10,7 @@ const status = $('status'), interimEl = $('interim'), log = $('log'), sent = $<H
 let listening = false
 let fields: Field[] = []
 let filled: Record<string, string> = {}
+const ctx: Context = { hint: undefined, last: undefined }
 const undoStack: { fieldId: string; prev: string; label: string }[] = []
 
 async function activeTabId(): Promise<number> {
@@ -56,11 +58,12 @@ async function onFinal(text: string) {
   let placements: Placement[]
   try {
     fields = await collect()   // SPA 対策: 確定ごとに取り直す（id は要素ごとに安定）
-    const chunks = segment(text, true, fields)
-    if (chunks.length === 0) return
-    placements = await route(fields, chunks, filled, ask)
+    const { chunks, direct } = applyContext(segment(text, true, fields), fields, ctx, Date.now())
+    if (ctx.hint && chunks.length === 0 && direct.length === 0) status.textContent = `「${ctx.hint}」の値を待っています`
+    placements = chunks.length ? await route(fields, chunks, filled, ask) : []
     // 連結された chunk（「山田 太郎」）は部分一致で配置済み扱い（ログ用のゆるい判定）
     for (const c of chunks) if (!placements.some((p) => p.chunk.includes(c.text))) addLog(`未配置: ${c.text}`, 'none')
+    placements = [...direct, ...placements]
   } catch (e) {
     addLog(`エラー: ${(e as Error).message} — 「${text}」は未配置`, 'err')
     return
@@ -70,6 +73,7 @@ async function onFinal(text: string) {
     const label = fields.find((f) => f.id === p.fieldId)?.label ?? p.fieldId
     if (!r) { addLog(`書き込み失敗: ${label} ← ${p.value}`, 'none'); continue }
     filled[p.fieldId] = p.value
+    if (p.confidence < 1) ctx.last = { fieldId: p.fieldId, chunk: p.chunk, at: Date.now() }   // direct（連結）は applyContext 側で更新済み
     undoStack.push({ ...r, label })
     undoBtn.disabled = false
     addLog(`${label} ← `, '', p.value, `(${p.confidence.toFixed(2)})`)
