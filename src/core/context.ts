@@ -16,7 +16,8 @@ const SYNONYMS: [string, string][] = [
   ['住所', '住所'], ['郵便', '郵便'], ['ふりがな', 'かな'], ['フリガナ', 'カナ'],
 ]
 
-function labelFor(text: string, fields: Field[]): string | undefined {
+function labelFor(text: string, all: Field[]): string | undefined {
+  const fields = all.filter((f) => f.kind !== 'checkbox')   // checkbox はラベル＝値（「箱」でチェック）
   const exact = fields.find((f) => f.label && f.label === text)
   if (exact) return exact.label
   const syn = SYNONYMS.find(([spoken]) => spoken === text)

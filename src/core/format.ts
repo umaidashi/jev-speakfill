@@ -96,9 +96,8 @@ export function coerce(text: string, field: Field, now: number): Coerced {
       return ok(`${m[1] ?? year ?? jstDate(now).getUTCFullYear()}-${pad(mo)}`)
     }
     case 'number': case 'range': {
-      const s = toHalf(t).replace(/^マイナス/, '-').replace(/[,，]/g, '')
-      const m = /^-?\d+(\.\d+)?/.exec(s); if (!m) return invalid(t)
-      const n = Number(m[0]); const v = String(n)
+      const n = parseJaNumber(t); if (n === null) return invalid(t)
+      const v = String(n)
       if (!inRange(v, c, (a, b) => Number(a) - Number(b))) return invalid(v)
       if (c?.step && c.step !== 'any') { const base = Number(c.min ?? 0); if (Math.abs(((n - base) / Number(c.step)) % 1) > 1e-9) return invalid(v) }
       return ok(v)
@@ -115,6 +114,15 @@ export function coerce(text: string, field: Field, now: number): Coerced {
   if (c?.maxLength !== undefined && t.length > c.maxLength) return invalid(t)
   if (c?.pattern) { try { if (!new RegExp(`^(?:${c.pattern})$`, 'u').test(t)) return invalid(t) } catch { /* 壊れた pattern は無視 */ } }
   return ok(t)
+}
+
+// 「15万8000円」「1.5万」「3千」「1億2000万」→ 数値。単位（円/センチ/個）は捨てる
+export function parseJaNumber(text: string): number | null {
+  const s = toHalf(text).replace(/^マイナス/, '-').replace(/[,，]/g, '')
+  const m = /^(-?)(?:(\d+(?:\.\d+)?)億)?(?:(\d+(?:\.\d+)?)万)?(?:(\d+(?:\.\d+)?)千)?(\d+(?:\.\d+)?)?/.exec(s)
+  if (!m || (m[2] === undefined && m[3] === undefined && m[4] === undefined && m[5] === undefined)) return null
+  const n = Number(m[2] ?? 0) * 1e8 + Number(m[3] ?? 0) * 1e4 + Number(m[4] ?? 0) * 1e3 + Number(m[5] ?? 0)
+  return m[1] ? -n : n
 }
 
 function digitsGate(value: string, [lo, hi]: [number, number]): Coerced {

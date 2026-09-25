@@ -117,3 +117,11 @@ test('gate: type 付きの欄は coerce で正規形に変換して apply する
   expect(g.apply.map((p) => p.value)).toEqual(['2026-09-25', '3000'])
   expect(g.rejected.map((p) => p.value)).toEqual(['-5'])
 })
+
+test('checkbox のラベルと同じ chunk は値（チェック）であってヒントではない', () => {
+  const ctx = fresh()
+  const f2: Field[] = [...fields, { id: 'box', label: '箱', kind: 'checkbox', options: ['箱'] }]
+  const r = applyContext([{ text: '箱' }], f2, ctx, 0)
+  expect(r.chunks).toEqual([{ text: '箱' }])
+  expect(ctx.hint).toBeUndefined()
+})

@@ -1,7 +1,7 @@
 import type { Chunk, Field, Question } from './types'
 import { effectiveType, UNIT_BY_LABEL } from './format'
 
-export const THRESHOLD = 0.35
+export const THRESHOLD = 0.5   // 1 往復目（欄選択）の下限。0.35 だと「バッグ」→氏名 (0.45) のような迷いが通った
 export const NONE = 'none'
 // 型付き欄は値の見た目を Jev に教える（「今日」が日付欄の値だと分かるように）
 const TYPE_HINT: Record<string, string> = {

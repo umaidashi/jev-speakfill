@@ -89,3 +89,11 @@ test('選択肢欄が選ばれなければ 2 回目は呼ばない', async () =>
   expect(n).toBe(1)
   expect(r[0].value).toBe('山田')
 })
+
+test('隣接 chunk が同じ選択肢欄に向いたら confidence の高い方だけ残す（ほぼ|新品 → 未使用に近い）', async () => {
+  const f: Field[] = [{ id: 'cond', label: '状態', kind: 'select', options: ['新品', '未使用に近い'] }]
+  const r = await route(f, [{ text: 'ほぼ' }, { text: '新品', glue: true }], {}, fakeAsk({
+    c0: answer('cond', 0.93), c1: answer('cond', 0.97), c0_cond: answer('未使用に近い', 0.61), c1_cond: answer('新品', 0.5),
+  }))
+  expect(r).toEqual([{ fieldId: 'cond', value: '未使用に近い', chunk: 'ほぼ', confidence: 0.93 }])
+})

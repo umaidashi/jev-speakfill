@@ -105,3 +105,12 @@ test('type が無くてもラベルが 価格/金額/重量/数量 なら number
   ok('250グラム', f('', { type: undefined, label: '重量' }), '250')
   bad('赤', f('', { type: undefined, label: '価格' }))
 })
+
+test('number: 万・億・千を展開する', () => {
+  ok('12万円', f('number'), '120000')
+  ok('15万8000円', f('number'), '158000')
+  ok('1.5万', f('number'), '15000')
+  ok('3千円', f('number'), '3000')
+  ok('1億2000万', f('number'), '120000000')
+  ok('32センチ', f('number'), '32')
+})

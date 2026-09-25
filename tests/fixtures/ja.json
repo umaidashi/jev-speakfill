@@ -1,6 +1,185 @@
 {
   "fields": [
     {
+      "id": "brand",
+      "label": "ブランド",
+      "kind": "select",
+      "options": [
+        "ルイ・ヴィトン",
+        "シャネル",
+        "エルメス",
+        "グッチ",
+        "プラダ",
+        "セリーヌ",
+        "ディオール",
+        "フェンディ",
+        "ボッテガ・ヴェネタ",
+        "バレンシアガ",
+        "ロエベ",
+        "サンローラン",
+        "バーバリー",
+        "ミュウミュウ",
+        "ゴヤール",
+        "クロエ",
+        "ジバンシィ",
+        "ヴァレンティノ",
+        "コーチ",
+        "マイケル・コース",
+        "ケイト・スペード",
+        "フルラ",
+        "トリー バーチ",
+        "ロンシャン",
+        "その他"
+      ]
+    },
+    {
+      "id": "category",
+      "label": "カテゴリ",
+      "kind": "select",
+      "options": [
+        "ハンドバッグ",
+        "ショルダーバッグ",
+        "トートバッグ",
+        "ボストンバッグ",
+        "クラッチバッグ",
+        "リュック",
+        "ウエストバッグ",
+        "ポーチ",
+        "財布"
+      ]
+    },
+    {
+      "id": "model",
+      "label": "ライン・モデル名",
+      "kind": "text"
+    },
+    {
+      "id": "material",
+      "label": "素材",
+      "kind": "select",
+      "options": [
+        "レザー",
+        "キャンバス",
+        "ナイロン",
+        "エキゾチックレザー",
+        "デニム",
+        "PVC",
+        "スエード"
+      ]
+    },
+    {
+      "id": "color",
+      "label": "色",
+      "kind": "select",
+      "options": [
+        "黒",
+        "白",
+        "ベージュ",
+        "茶",
+        "赤",
+        "ピンク",
+        "青",
+        "緑",
+        "グレー",
+        "ゴールド",
+        "シルバー",
+        "マルチカラー"
+      ]
+    },
+    {
+      "id": "cond",
+      "label": "状態",
+      "kind": "select",
+      "options": [
+        "新品・未使用",
+        "未使用に近い",
+        "目立った傷や汚れなし",
+        "やや傷や汚れあり",
+        "傷や汚れあり",
+        "全体的に状態が悪い"
+      ]
+    },
+    {
+      "id": "acc-box",
+      "label": "箱",
+      "kind": "checkbox",
+      "options": [
+        "箱"
+      ]
+    },
+    {
+      "id": "acc-bag",
+      "label": "保存袋",
+      "kind": "checkbox",
+      "options": [
+        "保存袋"
+      ]
+    },
+    {
+      "id": "acc-card",
+      "label": "ギャランティカード",
+      "kind": "checkbox",
+      "options": [
+        "ギャランティカード"
+      ]
+    },
+    {
+      "id": "w",
+      "label": "幅 (cm)",
+      "kind": "text",
+      "type": "number",
+      "constraints": {
+        "min": "0",
+        "step": "0.5"
+      }
+    },
+    {
+      "id": "h",
+      "label": "高さ (cm)",
+      "kind": "text",
+      "type": "number",
+      "constraints": {
+        "min": "0",
+        "step": "0.5"
+      }
+    },
+    {
+      "id": "serial",
+      "label": "シリアル・製造番号",
+      "kind": "text"
+    },
+    {
+      "id": "buy",
+      "label": "仕入日",
+      "kind": "text",
+      "type": "date"
+    },
+    {
+      "id": "cost",
+      "label": "仕入れ値",
+      "kind": "text",
+      "type": "number",
+      "constraints": {
+        "min": "0",
+        "step": "100"
+      }
+    },
+    {
+      "id": "price",
+      "label": "販売価格",
+      "kind": "text",
+      "type": "number",
+      "constraints": {
+        "min": "0",
+        "step": "100"
+      }
+    },
+    {
+      "id": "note",
+      "label": "備考",
+      "kind": "text"
+    },
+    {
       "id": "name",
       "label": "氏名",
       "kind": "text"
@@ -8,11 +187,12 @@
     {
       "id": "tel",
       "label": "電話番号",
-      "kind": "text"
+      "kind": "text",
+      "type": "tel"
     },
     {
-      "id": "email",
-      "label": "メールアドレス",
+      "id": "zip",
+      "label": "郵便番号",
       "kind": "text"
     },
     {
@@ -25,153 +205,100 @@
         "北海道",
         "福岡県"
       ]
-    },
-    {
-      "id": "sex",
-      "label": "性別",
-      "kind": "radio",
-      "options": [
-        "男性",
-        "女性"
-      ]
-    },
-    {
-      "id": "color",
-      "label": "色",
-      "kind": "select",
-      "options": [
-        "赤",
-        "青",
-        "黒",
-        "白"
-      ]
-    },
-    {
-      "id": "material",
-      "label": "素材",
-      "kind": "select",
-      "options": [
-        "革",
-        "布",
-        "金属"
-      ]
-    },
-    {
-      "id": "brand",
-      "label": "ブランド",
-      "kind": "text"
-    },
-    {
-      "id": "buy",
-      "label": "購入日",
-      "kind": "text",
-      "type": "date"
-    },
-    {
-      "id": "pickup",
-      "label": "受取時間",
-      "kind": "text",
-      "type": "time"
-    },
-    {
-      "id": "price",
-      "label": "価格",
-      "kind": "text",
-      "type": "number",
-      "constraints": {
-        "min": "0",
-        "step": "100"
-      }
-    },
-    {
-      "id": "release",
-      "label": "発売月",
-      "kind": "text",
-      "type": "month"
-    },
-    {
-      "id": "weight",
-      "label": "重量",
-      "kind": "text"
-    },
-    {
-      "id": "cond",
-      "label": "状態",
-      "kind": "select",
-      "options": [
-        "新品",
-        "中古"
-      ]
     }
   ],
   "cases": [
     {
-      "text": "赤、革、ルイヴィトン",
+      "text": "ルイヴィトン、ネヴァーフル、トート、黒",
+      "expect": {
+        "brand": "ルイ・ヴィトン",
+        "model": "ネヴァーフル",
+        "category": "トートバッグ",
+        "color": "黒"
+      }
+    },
+    {
+      "text": "ヴィトン、モノグラム、ショルダー、茶色",
+      "expect": {
+        "brand": "ルイ・ヴィトン",
+        "model": "モノグラム",
+        "category": "ショルダーバッグ",
+        "color": "茶"
+      }
+    },
+    {
+      "text": "ボッテガ、イントレチャート、レザー、ブラック",
+      "expect": {
+        "brand": "ボッテガ・ヴェネタ",
+        "model": "イントレチャート",
+        "material": "レザー",
+        "color": "黒"
+      }
+    },
+    {
+      "text": "シャネル、マトラッセ、ラムスキン、ほぼ新品",
+      "expect": {
+        "brand": "シャネル",
+        "model": "マトラッセ",
+        "material": "レザー",
+        "cond": "未使用に近い"
+      }
+    },
+    {
+      "text": "エルメス、バーキン30、トゴ",
+      "expect": {
+        "brand": "エルメス",
+        "model": "バーキン30",
+        "material": "レザー"
+      }
+    },
+    {
+      "text": "サンローラン、キャンバス、ベージュ、傷あり",
+      "expect": {
+        "brand": "サンローラン",
+        "material": "キャンバス",
+        "color": "ベージュ",
+        "cond": "傷や汚れあり"
+      }
+    },
+    {
+      "text": "新品ではない",
+      "expect": {}
+    },
+    {
+      "text": "箱と保存袋あり",
+      "expect": {
+        "acc-box": "箱",
+        "acc-bag": "保存袋"
+      }
+    },
+    {
+      "text": "幅32センチ、高さ29、仕入れ値12万円、販売価格15万8000円",
+      "expect": {
+        "w": "32",
+        "h": "29",
+        "cost": "120000",
+        "price": "158000"
+      }
+    },
+    {
+      "text": "シリアルはAR1234",
+      "expect": {
+        "serial": "AR1234"
+      }
+    },
+    {
+      "text": "仕入日は9月1日",
+      "expect": {
+        "buy": "2026-09-01"
+      }
+    },
+    {
+      "text": "赤革ルイヴィトン",
       "expect": {
         "color": "赤",
-        "material": "革",
-        "brand": "ルイヴィトン"
-      }
-    },
-    {
-      "text": "赤、川、ルイヴィトン",
-      "expect": {
-        "color": "赤",
-        "material": "革",
-        "brand": "ルイヴィトン"
-      }
-    },
-    {
-      "text": "青、皮、シャネル",
-      "expect": {
-        "color": "青",
-        "material": "革",
-        "brand": "シャネル"
-      }
-    },
-    {
-      "text": "黒、金属、エルメス",
-      "expect": {
-        "color": "黒",
-        "material": "金属",
-        "brand": "エルメス"
-      }
-    },
-    {
-      "text": "佐藤あかね",
-      "expect": {
-        "name": "佐藤あかね"
-      }
-    },
-    {
-      "text": "電話は09012345678",
-      "expect": {
-        "tel": "090-1234-5678"
-      }
-    },
-    {
-      "text": "電話は090 1234 5678",
-      "expect": {
-        "tel": "090-1234-5678"
-      }
-    },
-    {
-      "text": "山田 太郎",
-      "expect": {
-        "name": "山田 太郎"
-      }
-    },
-    {
-      "text": "東京都在住の女性です",
-      "expect": {
-        "pref": "東京都",
-        "sex": "女性"
-      }
-    },
-    {
-      "text": "メールはtaro@example.com",
-      "expect": {
-        "email": "taro@example.com"
+        "material": "レザー",
+        "brand": "ルイ・ヴィトン"
       }
     },
     {
@@ -179,124 +306,17 @@
       "expect": {}
     },
     {
-      "text": "大阪 男性 090 9876 5432",
+      "text": "山田太郎、090 1234 5678、東京都",
       "expect": {
-        "pref": "大阪府",
-        "sex": "男性",
-        "tel": "090-9876-5432"
+        "name": "山田太郎",
+        "tel": "090-1234-5678",
+        "pref": "東京都"
       }
     },
     {
-      "text": "赤革ルイヴィトン",
+      "text": "郵便番号、100 0001",
       "expect": {
-        "color": "赤",
-        "material": "革",
-        "brand": "ルイヴィトン"
-      }
-    },
-    {
-      "text": "黒金属エルメス中古",
-      "expect": {
-        "color": "黒",
-        "material": "金属",
-        "brand": "エルメス",
-        "cond": "中古"
-      }
-    },
-    {
-      "text": "青い皮のシャネルのバッグ",
-      "expect": {
-        "color": "青",
-        "material": "革",
-        "brand": "シャネル"
-      }
-    },
-    {
-      "text": "大阪の男性で佐藤あかねです",
-      "expect": {
-        "pref": "大阪府",
-        "sex": "男性",
-        "name": "佐藤あかね"
-      }
-    },
-    {
-      "text": "9月25日、午後3時半、3000円",
-      "expect": {
-        "buy": "2026-09-25",
-        "pickup": "15:30",
-        "price": "3000"
-      }
-    },
-    {
-      "text": "購入日は明日、価格は12,500円",
-      "expect": {
-        "buy": "2026-09-26",
-        "price": "12500"
-      }
-    },
-    {
-      "text": "赤、革、ルイヴィトン、2026年1月10日",
-      "expect": {
-        "color": "赤",
-        "material": "革",
-        "brand": "ルイヴィトン",
-        "buy": "2026-01-10"
-      }
-    },
-    {
-      "text": "2月30日",
-      "expect": {}
-    },
-    {
-      "text": "発売月は来年の8月、購入日は今日、受取時間は16時半",
-      "expect": {
-        "release": "2027-08",
-        "buy": "2026-09-25",
-        "pickup": "16:30"
-      }
-    },
-    {
-      "text": "今日",
-      "expect": {
-        "buy": "2026-09-25"
-      }
-    },
-    {
-      "text": "100円、250グラム",
-      "expect": {
-        "price": "100",
-        "weight": "250"
-      }
-    },
-    {
-      "text": "発売 去年 の 7月",
-      "expect": {
-        "release": "2025-07"
-      }
-    },
-    {
-      "text": "発売月は2025年7月7日",
-      "expect": {
-        "release": "2025-07"
-      }
-    },
-    {
-      "text": "新品ではない",
-      "expect": {
-        "cond": "中古"
-      }
-    },
-    {
-      "text": "中古じゃなくて新品",
-      "expect": {
-        "cond": "新品"
-      }
-    },
-    {
-      "text": "状態は新品じゃない、ブラック",
-      "expect": {
-        "cond": "中古",
-        "color": "黒"
+        "zip": "100-0001"
       }
     }
   ]

@@ -49,7 +49,7 @@ test('無区切りの発話は単語に割る（Intl.Segmenter）。同じ chunk
 
 test('1 文の中の複数値: 助詞・です を落として単語にする', () => {
   expect(segment('東京都在住の女性です', true, fields)).toEqual([
-    { text: '東京' }, { text: '都', glue: true }, { text: '在住', glue: true }, { text: '女性', glue: true },
+    { text: '東京都' }, { text: '在住', glue: true }, { text: '女性', glue: true },   // 東京|都 は選択肢辞書で戻る
   ])
 })
 
@@ -115,4 +115,30 @@ test('否定・除外（〜ではない / じゃない / 以外 / じゃなく�
   expect(segment('中古じゃなくて新品', true, f2)).toEqual([{ text: '中古じゃなくて新品' }])
   expect(segment('赤以外', true, f2)).toEqual([{ text: '赤以外' }])
   expect(segment('状態は新品ではない、赤', true, f2)).toEqual([{ text: '新品ではない', hint: '状態' }, { text: '赤' }])
+})
+
+describe('ブランドバッグ想定', () => {
+  const bag: Field[] = [
+    { id: 'cond', label: '状態', kind: 'select', options: ['新品・未使用', '未使用に近い', '傷や汚れあり'] },
+    { id: 'box', label: '箱', kind: 'checkbox', options: ['箱'] },
+    { id: 'bag', label: '保存袋', kind: 'checkbox', options: ['保存袋'] },
+    { id: 'w', label: '幅 (cm)', kind: 'text', type: 'number' },
+    { id: 'cost', label: '仕入れ値', kind: 'text', type: 'number' },
+    { id: 'price', label: '販売価格', kind: 'text', type: 'number' },
+    { id: 'color', label: '色', kind: 'select', options: ['赤', '黒'] },
+    { id: 'material', label: '素材', kind: 'select', options: ['レザー'] },
+  ]
+  test('程度の副詞（ほぼ/やや）は次の語にくっつける', () => {
+    expect(segment('ほぼ新品', true, bag)).toEqual([{ text: 'ほぼ新品' }])
+    expect(segment('やや傷あり', true, bag)).toEqual([{ text: 'やや傷あり' }])
+  })
+  test('ラベル・選択肢の辞書で ICU の割りすぎを戻す（保存|袋 → 保存袋）。「赤革」は割ったまま', () => {
+    expect(segment('箱と保存袋あり', true, bag)).toEqual([{ text: '箱' }, { text: '保存袋あり', glue: true }])
+    expect(segment('赤革', true, bag)).toEqual([{ text: '赤' }, { text: '革', glue: true }])
+  })
+  test('ラベル語の直後に数字が続けば助詞なしでも hint にする（幅32センチ / 仕入れ値12万円）', () => {
+    expect(segment('幅32センチ、高さ29、仕入れ値12万円、販売価格15万8000円', true, bag)).toEqual([
+      { text: '32センチ', hint: '幅 (cm)' }, { text: '高さ29' }, { text: '12万円', hint: '仕入れ値' }, { text: '15万8000円', hint: '販売価格' },
+    ])
+  })
 })
