@@ -6,5 +6,5 @@ for line in sys.stdin:
     except Exception: continue
     g = t.get("gate", {})
     seg = [c["text"] + (f"<{c['hint']}>" if c.get("hint") else "") for c in t.get("segment", [])]
-    jev = " | ".join(", ".join(f"{k}→{v['choice']}({v['confidence']:.2f})" for k, v in h["answers"].items()) for h in t.get("jev", []))
+    jev = " | ".join(", ".join(f"{k}→{v['choice']}({v['confidence']:.2f})" for k, v in h["answers"].items()) + (f" [{h['usage']['input_tokens']}+{h['usage']['output_tokens']} tok {h.get('ms', 0)}ms]" if h.get("usage") else "") for h in t.get("jev", []))
     print(f"「{t['text']}」 seg={seg} jev={jev or '-'} apply={f(g.get('apply', []))} pending={f(g.get('pending', []))} rejected={f(g.get('rejected', []))}", flush=True)

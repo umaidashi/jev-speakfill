@@ -2,7 +2,7 @@ import { handleRoute } from '../../src/server/handler'
 import type { Answer } from '../../src/core/types'
 
 const answer = (choice: string, confidence = 0.9): Answer => ({ type: 'choice', choice, probabilities: { [choice]: confidence }, confidence })
-const ask = async (_s: unknown, q: Record<string, unknown>) => Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0' ? answer('name') : answer('none')]))
+const ask = async (_s: unknown, q: Record<string, unknown>) => ({ answers: Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0' ? answer('name') : answer('none')])) })
 const fields = [{ id: 'name', label: '氏名', kind: 'text' as const }]
 
 test('JSON の RouteInput を受けて RouteResult を返す', async () => {

@@ -17,13 +17,14 @@ const fx = JSON.parse(readFileSync('tests/fixtures/ja.json', 'utf8')) as {
 }
 const label = (id: string) => fx.fields.find((f) => f.id === id)?.label ?? id
 const lines: string[] = [`# eval 結果 (${new Date().toISOString().slice(0, 16)})`, '', '欄: ' + fx.fields.map((f) => `${f.label}${f.options ? `[${f.options.join('/')}]` : ''}`).join(' / '), '']
-let hit = 0, total = 0
+let hit = 0, total = 0, inTok = 0, outTok = 0
 for (const c of fx.cases) {
   const hops: string[] = []
   const ask: JevAsk = async (s, q) => {
-    const a = await callJev(key, s, q)
-    hops.push(Object.entries(a).map(([id, v]: [string, Answer]) => `${id}→${id.includes('_') ? v.choice : label(v.choice)} (${v.confidence.toFixed(2)})`).join(', '))
-    return a
+    const r = await callJev(key, s, q)
+    inTok += r.usage?.input_tokens ?? 0; outTok += r.usage?.output_tokens ?? 0
+    hops.push(Object.entries(r.answers).map(([id, v]: [string, Answer]) => `${id}→${id.includes('_') ? v.choice : label(v.choice)} (${v.confidence.toFixed(2)})`).join(', ') + (r.usage ? ` [${r.usage.input_tokens}+${r.usage.output_tokens} tok]` : ''))
+    return r
   }
   const ctx: Context = { hint: undefined, last: undefined }
   const chunks0 = segment(c.text, true, fx.fields, CFG)
@@ -43,7 +44,7 @@ for (const c of fx.cases) {
     `- 期待 → ${fmt(c.expect)}`, '')
   console.log(`${ok ? '✅' : '❌'} ${c.text} → ${fmt(got)}`)
 }
-lines.push(`**一致 ${hit}/${total}**`)
+lines.push(`**一致 ${hit}/${total}**、Jev トークン 入力 ${inTok} / 出力 ${outTok}`)
 mkdirSync('docs/eval', { recursive: true })
 writeFileSync('docs/eval/latest.md', lines.join('\n') + '\n')
-console.log(`一致 ${hit}/${total} → docs/eval/latest.md`)
+console.log(`一致 ${hit}/${total}（Jev 入力 ${inTok} / 出力 ${outTok} tok）→ docs/eval/latest.md`)

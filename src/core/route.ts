@@ -7,7 +7,7 @@ import type { Chunk, Field, JevAsk, Placement, Question } from './types'
 export async function route(fields: Field[], chunks: Chunk[], filled: Record<string, string>, ask: JevAsk, recent: string[] = [], cfg: SpeakfillConfig = DEFAULT_CONFIG): Promise<Placement[]> {
   if (chunks.length === 0 || fields.length === 0) return []
   const { state, questions } = buildQuestions(fields, chunks, filled, recent, cfg)
-  const answers = await ask(state, questions)
+  const { answers } = await ask(state, questions)
   // 1 往復目で選ばれた欄のうち、選択肢を持つものだけ 2 往復目で option を選ぶ
   const chosen = chunks.map((_, i) => {
     const a = answers[`c${i}`]
@@ -16,7 +16,7 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
   })
   const optQ: Record<string, Question> = {}
   chosen.forEach((f, i) => { if (f?.options?.length) optQ[`c${i}_${f.id}`] = optionQuestion(i, f, cfg) })
-  const optAnswers = Object.keys(optQ).length ? await ask(state, optQ) : {}
+  const optAnswers = Object.keys(optQ).length ? (await ask(state, optQ)).answers : {}
   const out: Placement[] = []
   const optConf = new Map<Placement, number>()
   const merged = new Map<Placement, number>()   // 連結した語数

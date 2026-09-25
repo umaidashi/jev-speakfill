@@ -3,7 +3,7 @@ import { applyContext, gate, type Context } from './context'
 import { coerce } from './format'
 import { resolveConfig, type SpeakfillConfig } from './config'
 import { route } from './route'
-import type { Answer, Chunk, Field, JevAsk, Placement, Question } from './types'
+import type { Answer, Chunk, Field, JevAsk, JevUsage, Placement, Question } from './types'
 
 // 発話 1 回分を「配置」に変える全段階。ホスト（拡張 / web / サーバ）はこれを呼ぶだけ
 export type RouteInput = {
@@ -33,7 +33,7 @@ export type Trace = {
   ctxBefore: Context
   segment: Chunk[]
   context: { chunks: Chunk[]; direct: Placement[] }
-  jev: { state: unknown; questions: Record<string, Question>; answers: Record<string, Answer>; ms: number }[]
+  jev: { state: unknown; questions: Record<string, Question>; answers: Record<string, Answer>; ms: number; usage?: JevUsage; model?: string }[]   // 往復ごとのトークン使用量も残す
   routed: Placement[]               // Jev の答えを採否した直後（gate 前）
   gate: { apply: Placement[]; pending: Placement[]; rejected: Placement[] }
 }
@@ -43,9 +43,9 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
   const jev: Trace['jev'] = []
   const askTraced: JevAsk = async (state, questions) => {
     const t0 = Date.now()
-    const answers = await ask(state, questions)
-    jev.push({ state, questions, answers, ms: Date.now() - t0 })
-    return answers
+    const res = await ask(state, questions)
+    jev.push({ state, questions, answers: res.answers, ms: Date.now() - t0, usage: res.usage, model: res.model })
+    return res
   }
   const cfg = resolveConfig(input.config)
   const seg = segment(input.text, true, input.fields, cfg)

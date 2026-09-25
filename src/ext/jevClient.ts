@@ -1,8 +1,8 @@
-import type { Answer, Question } from '../core/types'
+import type { JevResponse, Question } from '../core/types'
 
 export async function callJev(
   apiKey: string, state: unknown, questions: Record<string, Question>, fetchImpl: typeof fetch = fetch,
-): Promise<Record<string, Answer>> {
+): Promise<JevResponse> {
   if (!apiKey) throw new Error('API キー未設定')
   const res = await fetchImpl('https://api.typesafe.ai/v1/systemone', {
     method: 'POST',
@@ -10,6 +10,6 @@ export async function callJev(
     body: JSON.stringify({ model: 'jev-latest', state, questions }),
   })
   if (!res.ok) throw new Error(`jev ${res.status}`)
-  const json = (await res.json()) as { answers: Record<string, Answer> }
-  return json.answers
+  const json = (await res.json()) as JevResponse
+  return { answers: json.answers, usage: json.usage, model: json.model }
 }

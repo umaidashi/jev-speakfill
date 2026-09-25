@@ -10,7 +10,7 @@ const answer = (choice: string, confidence = 0.9): Answer => ({ type: 'choice', 
 const ask: JevAsk = async (_s, q) => {
   const out: Record<string, Answer> = {}
   for (const id of Object.keys(q)) out[id] = id === 'c0' ? answer('color') : id === 'c1' ? answer('tel') : id === 'c0_color' ? answer('赤') : answer('none')
-  return out
+  return { answers: out, usage: { input_tokens: 100, output_tokens: 20 }, model: 'jev-latest' }
 }
 const fresh = () => ({ hint: undefined, last: undefined })
 
@@ -23,14 +23,14 @@ test('segment → context → route → gate を通して結果と次の ctx を
 
 test('欄名だけなら hint を返し、Jev を呼ばない', async () => {
   let called = 0
-  const r = await pipeline({ fields, text: '電話番号', filled: {}, ctx: fresh(), now: 0 }, async () => { called++; return {} })
+  const r = await pipeline({ fields, text: '電話番号', filled: {}, ctx: fresh(), now: 0 }, async () => { called++; return { answers: {} } })
   expect(called).toBe(0)
   expect(r.hint).toBe('電話番号')
   expect(r.ctx.hint).toBe('電話番号')
 })
 
 test('未配置の chunk を unplaced に返す', async () => {
-  const r = await pipeline({ fields, text: 'えーと', filled: {}, ctx: fresh(), now: 0 }, async (_s, q) => Object.fromEntries(Object.keys(q).map((id) => [id, answer('none')])))
+  const r = await pipeline({ fields, text: 'えーと', filled: {}, ctx: fresh(), now: 0 }, async (_s, q) => ({ answers: Object.fromEntries(Object.keys(q).map((id) => [id, answer('none')])) }))
   expect(r.apply).toEqual([])
   expect(r.unplaced).toEqual(['えーと'])
 })
@@ -49,11 +49,13 @@ test('trace に文字起こしから配置までの全段階が残る', async ()
   expect(t.jev[1].answers.c0_color.choice).toBe('赤')
   expect(t.gate.apply.map((p) => p.value)).toEqual(['赤'])
   expect(t.gate.pending.map((p) => p.value)).toEqual(['080'])
+  expect(t.jev[0].usage).toEqual({ input_tokens: 100, output_tokens: 20 })   // 往復ごとの usage が残る
+  expect(t.jev[0].model).toBe('jev-latest')
 })
 
 test('欄名だけの発話が Jev 経由で数値欄に落ちた場合も hint として返る', async () => {
   const typed: Field[] = [{ id: 'h', label: '高さ (cm)', kind: 'text', type: 'number' }]
-  const ask2: JevAsk = async (_s, q) => Object.fromEntries(Object.keys(q).map((id) => [id, answer('h')]))
+  const ask2: JevAsk = async (_s, q) => ({ answers: Object.fromEntries(Object.keys(q).map((id) => [id, answer('h')])) })
   const r = await pipeline({ fields: typed, text: 'たかさ', filled: {}, ctx: fresh(), now: 0 }, ask2)
   expect(r.hint).toBe('高さ (cm)')
   expect(r.rejected).toEqual([])
@@ -64,7 +66,7 @@ test('欄名だけの chunk（町 = マチ）を Jev が欄に当てたら、直
     { id: 'w', label: '幅 (cm)', kind: 'text', type: 'number' },
     { id: 'd', label: 'マチ (cm)', kind: 'text', type: 'number' },
   ]
-  const ask2: JevAsk = async (_s, q) => Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0' ? answer('w') : id === 'c1' ? answer('d', 0.7) : answer('none', 0.2)]))
+  const ask2: JevAsk = async (_s, q) => ({ answers: Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0' ? answer('w') : id === 'c1' ? answer('d', 0.7) : answer('none', 0.2)])) })
   const r = await pipeline({ fields: typed, text: '幅は200 町 100', filled: {}, ctx: fresh(), now: 0 }, ask2)
   expect(r.apply).toEqual([
     { fieldId: 'w', value: '200', chunk: '200', confidence: 0.9 },
@@ -76,7 +78,7 @@ test('欄名だけの chunk（町 = マチ）を Jev が欄に当てたら、直
 })
 
 test('RouteInput.config で語彙を注入できる（同義語「名前」→ 氏名）', async () => {
-  const ask2: JevAsk = async (_s, q) => Object.fromEntries(Object.keys(q).map((id) => [id, answer('name')]))
+  const ask2: JevAsk = async (_s, q) => ({ answers: Object.fromEntries(Object.keys(q).map((id) => [id, answer('name')])) })
   const r = await pipeline({ fields, text: '名前は田中', filled: {}, ctx: fresh(), now: 0, config: { synonyms: [{ spoken: '名前', label: '氏名' }] } }, ask2)
   expect(r.trace.segment).toEqual([{ text: '田中', hint: '氏名' }])
 })

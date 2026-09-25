@@ -28,7 +28,8 @@ createServer(async (req, res) => {
       const t = r.body.trace
       await appendFile(logFile, JSON.stringify({ ...t, wall: new Date().toISOString() }) + '\n')
       const fmt = (ps: { fieldId: string; value: string }[]) => ps.map((p) => `${t.gate ? p.fieldId : ''}=${p.value}`).join(', ')
-      console.log(`[${new Date().toLocaleTimeString('ja-JP', { hour12: false })}] 「${t.text}」 → ${fmt(r.body.apply) || '(なし)'}${r.body.pending.length ? ` / 保留 ${fmt(r.body.pending)}` : ''}${r.body.rejected.length ? ` / 形式不正 ${fmt(r.body.rejected)}` : ''}${r.body.unplaced.length ? ` / 未配置 ${r.body.unplaced.join('・')}` : ''}`)
+      const tok = t.jev.reduce((a: number, h: { usage?: { input_tokens: number; output_tokens: number } }) => a + (h.usage?.input_tokens ?? 0) + (h.usage?.output_tokens ?? 0), 0)
+      console.log(`[${new Date().toLocaleTimeString('ja-JP', { hour12: false })}] 「${t.text}」 → ${fmt(r.body.apply) || '(なし)'}${r.body.pending.length ? ` / 保留 ${fmt(r.body.pending)}` : ''}${r.body.rejected.length ? ` / 形式不正 ${fmt(r.body.rejected)}` : ''}${r.body.unplaced.length ? ` / 未配置 ${r.body.unplaced.join('・')}` : ''} (${t.jev.length} 往復 ${tok} tok)`)
     } else {
       console.log(`[${new Date().toLocaleTimeString('ja-JP', { hour12: false })}] ${r.status} ${r.body.message}`)
     }

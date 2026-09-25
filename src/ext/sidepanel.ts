@@ -37,7 +37,7 @@ async function toTab(msg: unknown) {
 const ask: JevAsk = async (state, questions) => {
   const res = await chrome.runtime.sendMessage({ type: 'ask', state, questions })
   if (!res?.ok) throw new Error(res?.error ?? 'unknown')
-  return res.answers
+  return res.response
 }
 
 // オプションでサーバ URL が設定されていれば /route に投げる（キーはサーバ側、トレースはサーバのファイルにも残る）

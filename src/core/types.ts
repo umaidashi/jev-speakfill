@@ -32,4 +32,6 @@ export type Answer = {
   confidence: number
 }
 
-export type JevAsk = (state: unknown, questions: Record<string, Question>) => Promise<Record<string, Answer>>
+export type JevUsage = { input_tokens: number; output_tokens: number }
+export type JevResponse = { answers: Record<string, Answer>; usage?: JevUsage; model?: string }
+export type JevAsk = (state: unknown, questions: Record<string, Question>) => Promise<JevResponse>

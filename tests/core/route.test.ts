@@ -16,7 +16,7 @@ function fakeAsk(map: Record<string, Answer>): JevAsk {
   return async (_state, questions) => {
     const out: Record<string, Answer> = {}
     for (const id of Object.keys(questions)) out[id] = map[id] ?? answer('none', 0.1)
-    return out
+    return { answers: out, usage: { input_tokens: 10, output_tokens: 2 } }
   }
 }
 
@@ -58,7 +58,7 @@ test('ラベル空の欄があってもクラッシュしない（Review Focus 2
 
 test('chunk が空なら ask を呼ばない', async () => {
   let called = 0
-  const ask: JevAsk = async () => { called++; return {} }
+  const ask: JevAsk = async () => { called++; return { answers: {} } }
   expect(await route(fields, [], {}, ask)).toEqual([])
   expect(called).toBe(0)
 })
@@ -76,7 +76,7 @@ test('2 往復: 1 回目は欄選択だけ、2 回目は選ばれた選択肢欄
     calls.push(Object.keys(questions))
     const out: Record<string, Answer> = {}
     for (const id of Object.keys(questions)) out[id] = id === 'c0' ? answer('name') : id === 'c1' ? answer('pref') : id === 'c1_pref' ? answer('大阪府') : answer('none')
-    return out
+    return { answers: out }
   }
   const r = await route(fields, [{ text: '山田' }, { text: '大阪' }], {}, ask)
   expect(calls).toEqual([['c0', 'c1'], ['c1_pref']])
@@ -85,7 +85,7 @@ test('2 往復: 1 回目は欄選択だけ、2 回目は選ばれた選択肢欄
 
 test('選択肢欄が選ばれなければ 2 回目は呼ばない', async () => {
   let n = 0
-  const r = await route(fields, [{ text: '山田' }], {}, async (_s, q) => { n++; const o: Record<string, Answer> = {}; for (const id of Object.keys(q)) o[id] = answer('name'); return o })
+  const r = await route(fields, [{ text: '山田' }], {}, async (_s, q) => { n++; const o: Record<string, Answer> = {}; for (const id of Object.keys(q)) o[id] = answer('name'); return { answers: o } })
   expect(n).toBe(1)
   expect(r[0].value).toBe('山田')
 })
