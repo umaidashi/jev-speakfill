@@ -4,9 +4,10 @@ import { readFile, appendFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { handleRoute } from './handler'
-import { callJev } from '../../../src/ext/jevClient'
+import { callJev } from '../../../src/hosts/ext/jevClient'
 
 const key = process.env.TYPESAFE_API_KEY ?? ''
+const model = process.env.JEV_MODEL ?? 'jev-latest'
 const port = Number(process.env.PORT ?? 8787)
 const webDir = join(process.cwd(), 'dist', 'web-app')
 const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.map': 'application/json' }
@@ -22,7 +23,7 @@ createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/route') {
     let body = ''
     for await (const chunk of req) body += chunk
-    const r = await handleRoute(body, (s, q) => callJev(key, s, q), baseConfig)
+    const r = await handleRoute(body, (s, q) => callJev(key, s, q, fetch, model), baseConfig)
     res.writeHead(r.status, { 'Content-Type': 'application/json', ...cors }).end(JSON.stringify(r.body))
     if (r.status === 200) {
       const t = r.body.trace

@@ -111,3 +111,11 @@ test('「らいねんの8月6日」のように骨格が読めれば、年の候
   const r = await pipeline({ fields: typed, text: '次の年の8月6日', filled: {}, ctx: fresh(), now: Date.UTC(2026, 8, 25, 3) }, ask2)
   expect(r.apply.map((p) => p.value)).toEqual(['2027-08-06'])
 })
+
+test('prompts.date で日付候補の質問文を差し替えられる', async () => {
+  const typed: Field[] = [{ id: 'buy', label: '仕入日', kind: 'text', type: 'date' }]
+  const calls: Record<string, { instructions: string }>[] = []
+  const ask2: JevAsk = async (_s, q) => { calls.push(q as never); return { answers: Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0' ? answer('buy') : answer('none')])) } }
+  await pipeline({ fields: typed, text: 'あくる日', filled: {}, ctx: fresh(), now: Date.UTC(2026, 8, 25, 3), config: { prompts: { field: 'F{i}', option: 'O{i}', date: 'D {chunk}/{label}/{today}' } } }, ask2)
+  expect(calls[1].date_buy.instructions).toBe('D あくる日/仕入日/2026-09-25')
+})

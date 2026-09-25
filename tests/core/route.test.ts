@@ -110,3 +110,10 @@ test('1 つの発話断片の全単語が同じ自由記述欄に向いたら、
   const r = await route(f, [{ text: '底面', src, srcN: 2 }, { text: '傷あり', glue: true, src, srcN: 2 }], {}, fakeAsk({ c0: answer('note'), c1: answer('note') }))
   expect(r).toEqual([{ fieldId: 'note', value: '底面に傷あり', chunk: '底面に傷あり', confidence: 0.9 }])
 })
+
+test('optionThreshold 未満の選択肢は採らない', async () => {
+  const { resolveConfig } = await import('../../src/core/config')
+  const cfg = resolveConfig({ optionThreshold: 0.8 })
+  const r = await route(fields, [{ text: '東京' }], {}, fakeAsk({ c0: answer('pref'), c0_pref: answer('東京都', 0.5) }), [], cfg)
+  expect(r).toEqual([])
+})

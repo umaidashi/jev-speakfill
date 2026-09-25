@@ -1,6 +1,6 @@
 import type { Chunk, Field, Question } from './types'
 import { effectiveType } from './format'
-import { DEFAULT_CONFIG, matchesAny, type SpeakfillConfig } from './config'
+import { DEFAULT_CONFIG, fill, matchesAny, type SpeakfillConfig } from './config'
 
 export const NONE = 'none'
 
@@ -18,13 +18,12 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
     criteria[NONE] = '雑談・指示・どの欄の値でもない'
     questions[`c${i}`] = {
       type: 'choice',
-      instructions:
-        `\`chunks[${i}].text\` は日本語フォームのどの入力欄に入れるべき値か。欄名は発話されないことが多い。${cfg.sttNote}` +
-        (chunk.hint ? `話者は欄名「${chunk.hint}」を明示した。強く考慮せよ。` : '') +
-        `既に \`filled\` にある欄は、値の種類が明らかに一致するときだけ選べ。` +
-        `\`recent\` は直前の発話（古い順）。同じ発話内の他の chunk と recent から、この値が何の続きかを読み取れ。` +
-        `chunk が値ではなく欄名そのもの（読みが同じ誤変換を含む）なら、その欄を選べ。` +
-        (cfg.instructions ? ` ${cfg.instructions}` : ''),
+      instructions: fill(cfg.prompts.field, {
+        i: String(i),
+        hint: chunk.hint ? `話者は欄名「${chunk.hint}」を明示した。強く考慮せよ。` : '',
+        sttNote: cfg.sttNote,
+        instructions: cfg.instructions,
+      }),
       criteria,
     }
   })
@@ -43,7 +42,7 @@ export function optionQuestion(i: number, f: Field, cfg: SpeakfillConfig = DEFAU
   oc[NONE] = 'どの選択肢にも当たらない'
   return {
     type: 'choice',
-    instructions: `\`chunks[${i}].text\` が欄「${f.label}」の値だとしたら、どの選択肢を指しているか。${cfg.sttNote}${cfg.instructions ? ` ${cfg.instructions}` : ''}`,
+    instructions: fill(cfg.prompts.option, { i: String(i), label: f.label, sttNote: cfg.sttNote, instructions: cfg.instructions }),
     criteria: oc,
   }
 }

@@ -4,15 +4,15 @@ mkdirSync('dist', { recursive: true })
 const BUILD = JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' '))
 await build({
   entryPoints: {
-    background: 'src/ext/background.ts',
-    content: 'src/ext/content.ts',
-    sidepanel: 'src/ext/sidepanel.ts',
-    options: 'src/ext/options.ts',
-    grant: 'src/ext/grant.ts',
+    background: 'src/hosts/ext/background.ts',
+    content: 'src/hosts/ext/content.ts',
+    sidepanel: 'src/hosts/ext/sidepanel.ts',
+    options: 'src/hosts/ext/options.ts',
+    grant: 'src/hosts/ext/grant.ts',
   },
   bundle: true, format: 'esm', outdir: 'dist', target: 'chrome116', sourcemap: true, charset: 'utf8', define: { __BUILD__: BUILD },
 })
-cpSync('src/ext/static', 'dist', { recursive: true })
+cpSync('src/hosts/ext/static', 'dist', { recursive: true })
 
 // examples/web-app: フロートボタン widget + サンプルページ + backend
 await build({ entryPoints: { widget: 'examples/web-app/widget.ts' }, bundle: true, format: 'iife', outdir: 'dist/web-app', target: 'chrome116', sourcemap: true, charset: 'utf8', define: { __BUILD__: BUILD } })

@@ -26,7 +26,7 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
     let value: string
     if (field.options?.length) {
       const opt = optAnswers[`c${i}_${field.id}`]
-      if (!opt || opt.choice === NONE) return
+      if (!opt || opt.choice === NONE || opt.confidence < cfg.optionThreshold) return
       value = opt.choice
       // 同じ選択肢欄に隣接 chunk が向いたら（「ほぼ」「新品」）、選択肢の confidence が高い方だけ残す
       const last = out[out.length - 1]

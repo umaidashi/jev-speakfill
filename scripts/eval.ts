@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { pipeline } from '../src/core/pipeline.ts'
 import type { Context } from '../src/core/context.ts'
-import { callJev } from '../src/ext/jevClient.ts'
+import { callJev } from '../src/hosts/ext/jevClient.ts'
 import type { Answer, Field, JevAsk } from '../src/core/types.ts'
 const JA_COMMERCE = JSON.parse(readFileSync('examples/web-app/speakfill.config.json', 'utf8'))   // サンプルの語彙設定
 

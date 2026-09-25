@@ -54,7 +54,11 @@ npm run dev            # build → http://localhost:8787
 | `telLabels` / `zipLabels` | `["電話","携帯"]` / `["郵便","〒"]` | `type` が無い欄を tel / zip とみなすラベル語 |
 | `timeZone` | `"Asia/Tokyo"` | 「今日」「明日」を解決するタイムゾーン |
 | `relativeDays` / `relativeYears` | `{"きょう":0,"あした":1}` / `{"らいねん":1}` | 相対日付の語彙（かな表記・読み違いを足す） |
-| `sttNote` / `typeHints` / `threshold` / `continueMs` / `maxFields` / `particles` / `trailers` / `negations` / `colors` / `noonWords` | | 既定値を上書き |
+| `threshold` / `optionThreshold` | `0.5` / `0.3` | 欄選択・選択肢選択で採用する confidence の下限 |
+| `prompts.field` / `prompts.option` / `prompts.date` | `"`chunks[{i}].text` は…{sttNote}{hint}…{instructions}"` | Jev への質問文の全文（`{i}` `{label}` `{hint}` `{chunk}` `{today}` `{sttNote}` `{instructions}` を埋める） |
+| `recentCount` / `dateCandidateDays` / `dateCandidateYears` | `3` / `14` / `2` | 直前発話の数、日付候補の範囲 |
+| `telDigits` / `zipDigits` | `[10,11]` / `[7,7]` | 桁数の範囲 |
+| `sttNote` / `typeHints` / `continueMs` / `maxFields` / `particles` / `trailers` / `negations` / `colors` / `noonWords` | | 既定値を上書き |
 
 注入口:
 - **サーバ**: 設定ファイル（サンプルは `examples/web-app/speakfill.config.json`）。リクエストの `config` が上書き

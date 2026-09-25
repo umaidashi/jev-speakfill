@@ -1,10 +1,10 @@
 // 任意のページに <script src="widget.js"> で後付けするフロートボタン（DOM モード）。
 // 欄の収集と書き込みはページの DOM、ルーティングはサーバの /route（Jev キーはサーバにしか無い）
 import { Engine, type EngineEvent, type Host } from '../../src/core/engine'
-import { applyPlacement, collectFields, restore } from '../../src/dom'
-import { startSpeech, type SpeechHandle } from '../../src/web/speech'
+import { applyPlacement, collectFields, restore } from '../../src/hosts/dom'
+import { startSpeech, type SpeechHandle } from '../../src/hosts/web/speech'
 import type { RouteResult } from '../../src/core/pipeline'
-import { TraceLog, localStorageStore } from '../../src/web/tracelog'
+import { TraceLog, localStorageStore } from '../../src/hosts/web/tracelog'
 import type { SpeakfillConfig } from '../../src/core/config'
 
 const script = document.currentScript as HTMLScriptElement | null

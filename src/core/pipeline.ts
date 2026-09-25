@@ -1,7 +1,7 @@
 import { segment } from './segment'
 import { applyContext, gate, type Context } from './context'
 import { coerce, effectiveType, fmtDate, isDateLike, localYMD, parseDateSkeleton } from './format'
-import { resolveConfig, type SpeakfillConfig } from './config'
+import { fill, resolveConfig, type SpeakfillConfig } from './config'
 import { route } from './route'
 import type { Answer, Chunk, Field, JevAsk, JevUsage, Placement, Question } from './types'
 import { NONE } from './jev'
@@ -91,10 +91,10 @@ async function resolveDatesWithJev(g: ReturnType<typeof gate>, input: RouteInput
     const criteria: Record<string, string> = {}
     const sk = parseDateSkeleton((/(\d{4}[年/])?\d{1,2}[月/]\d{1,2}日?$/.exec(p.chunk.replace(/\s+/g, '')) ?? [''])[0])
     if (sk) {
-      for (const off of [-2, -1, 0, 1, 2]) criteria[fmtDate({ y: (sk.y ?? today.y) + off, m: sk.m, d: sk.d })] = `${(sk.y ?? today.y) + off}年${sk.m}月${sk.d}日（今年から ${off >= 0 ? '+' : ''}${off} 年）`
+      for (let off = -cfg.dateCandidateYears; off <= cfg.dateCandidateYears; off++) criteria[fmtDate({ y: (sk.y ?? today.y) + off, m: sk.m, d: sk.d })] = `${(sk.y ?? today.y) + off}年${sk.m}月${sk.d}日（今年から ${off >= 0 ? '+' : ''}${off} 年）`
     } else {
       const WD = ['日', '月', '火', '水', '木', '金', '土']
-      for (let off = -14; off <= 14; off++) {
+      for (let off = -cfg.dateCandidateDays; off <= cfg.dateCandidateDays; off++) {
         const d = localYMD(input.now, cfg.timeZone, off)
         const wd = WD[new Date(Date.UTC(d.y, d.m - 1, d.d)).getUTCDay()]
         criteria[fmtDate(d)] = `${fmtDate(d)}（${wd}曜日、今日から ${off >= 0 ? '+' : ''}${off} 日）`
@@ -104,7 +104,7 @@ async function resolveDatesWithJev(g: ReturnType<typeof gate>, input: RouteInput
     candidates.set(p.fieldId, criteria)
     questions[`date_${p.fieldId}`] = {
       type: 'choice',
-      instructions: `発話「${p.chunk}」は欄「${field.label}」の日付としてどれを指すか。今日は ${fmtDate(today)}。${cfg.sttNote}`,
+      instructions: fill(cfg.prompts.date, { chunk: p.chunk, label: field.label, today: fmtDate(today), sttNote: cfg.sttNote }),
       criteria,
     }
   }

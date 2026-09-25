@@ -1,4 +1,4 @@
-import type { Field, Placement } from '../core/types'
+import type { Field, Placement } from '../../core/types'
 
 const registry = new Map<string, HTMLElement | HTMLInputElement[]>()  // radio は同名グループの配列
 const ids = new WeakMap<HTMLElement, string>()                          // 要素ごとに安定した id

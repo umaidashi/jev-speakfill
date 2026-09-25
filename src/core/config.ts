@@ -18,12 +18,26 @@ export type SpeakfillConfig = {
   trailers: string[]                                // chunk 末尾から落とす丁寧語
   negations: string[]                               // 含んでいたら chunk を割らない（否定・除外）
   threshold: number                                 // 1 往復目（欄選択）の confidence 下限
+  optionThreshold: number                           // 2 往復目（選択肢）の confidence 下限
+  recentCount: number                               // Jev に渡す直前の発話の数
+  dateCandidateDays: number                         // 日付の候補選択: 今日 ± この日数
+  dateCandidateYears: number                        // 日付の候補選択: 骨格 M月D日 の年 ± この年数
+  telDigits: [number, number]                       // 電話番号の桁数（最小, 最大）
+  zipDigits: [number, number]                       // 郵便番号の桁数
   continueMs: number                                // 数字連結を許す時間
   maxFields: number                                 // 収集する欄の上限
   typeHints: Record<string, string>                 // type ごとの値の例（Jev の criteria に添える）
   sttNote: string                                   // 同音異義についての注意（instructions）
   instructions: string                              // ドメインの追加説明（自由記述。instructions 末尾に付く）
+  prompts: {                                        // Jev への質問文。全文を差し替えられる（言語パック化の前段）
+    field: string                                   //   欄選択。{i} {hint} {sttNote} {instructions}
+    option: string                                  //   選択肢選択。{i} {label} {sttNote} {instructions}
+    date: string                                    //   日付の候補選択。{chunk} {label} {today} {sttNote}
+  }
 }
+
+// {name} を values で置換。未知の名前はそのまま残す
+export const fill = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (m, k) => (k in values ? values[k] : m))
 
 export const DEFAULT_CONFIG: SpeakfillConfig = {
   synonyms: [],
@@ -43,6 +57,12 @@ export const DEFAULT_CONFIG: SpeakfillConfig = {
   trailers: ['です', 'でございます', 'になります'],
   negations: ['ない', 'なく', '以外', 'じゃな', 'ではな'],
   threshold: 0.5,
+  optionThreshold: 0.3,
+  recentCount: 3,
+  dateCandidateDays: 14,
+  dateCandidateYears: 2,
+  telDigits: [10, 11],
+  zipDigits: [7, 7],
   continueMs: 5000,
   maxFields: 100,
   typeHints: {
@@ -55,6 +75,15 @@ export const DEFAULT_CONFIG: SpeakfillConfig = {
   },
   sttNote: '入力は音声認識の文字起こしで、同音異義の誤変換がありうる。読みが一致するものを優先せよ。',
   instructions: '',
+  prompts: {
+    field:
+      '`chunks[{i}].text` は日本語フォームのどの入力欄に入れるべき値か。欄名は発話されないことが多い。{sttNote}{hint}' +
+      '既に `filled` にある欄は、値の種類が明らかに一致するときだけ選べ。' +
+      '`recent` は直前の発話（古い順）。同じ発話内の他の chunk と recent から、この値が何の続きかを読み取れ。' +
+      'chunk が値ではなく欄名そのもの（読みが同じ誤変換を含む）なら、その欄を選べ。{instructions}',
+    option: '`chunks[{i}].text` が欄「{label}」の値だとしたら、どの選択肢を指しているか。{sttNote}{instructions}',
+    date: '発話「{chunk}」は欄「{label}」の日付としてどれを指すか。今日は {today}。{sttNote}',
+  },
 }
 
 // 部分指定を DEFAULT に重ねる。配列・辞書は置き換え（足したいときは DEFAULT を展開して渡す）

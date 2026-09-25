@@ -42,7 +42,7 @@ Chrome 拡張として任意のページで使うなら、まず `chrome://exten
 
 | ホスト | 使いどころ | Jev キーの置き場 |
 |---|---|---|
-| Chrome 拡張 `src/ext/` | 手元の任意のページで試す | 拡張内に自分の鍵を保存（BYOK）か、サーバ経由 |
+| Chrome 拡張 `src/hosts/ext/` | 手元の任意のページで試す | 拡張内に自分の鍵を保存（BYOK）か、サーバ経由 |
 | web widget `examples/web-app/widget.ts` | 既存ページに `<script>` 1 行で後付け | サーバ |
 | サーバ `examples/web-app/server/` | `POST /route`。語彙設定とトレースログを持つ | `.env` |
 
@@ -61,4 +61,4 @@ Chrome 拡張として任意のページで使うなら、まず `chrome://exten
 - [docs/design.md](docs/design.md) — 処理の流れ、コードと Jev の分担、アーキテクチャ、設計判断
 - [spec/](spec/) — 着手時の競合調査・設計 spec・実装 plan。更新しない
 
-コードは `src/core/`（ルーティングの全段階）、`src/dom/`（欄の収集と書き込み）、`src/web/`（ブラウザ共通: Web Speech の包みとトレース保存）、`src/ext/`（Chrome 拡張）、`examples/web-app/`（widget・サンプルページ・サーバ・語彙設定）、`tests/`、`scripts/`。各モジュールの役割は design.md の分担表にある。
+コードは `src/core/`（ルーティングの全段階。DOM もマイクも知らない）、`src/hosts/`（`dom` = 欄の収集と書き込み、`web` = Web Speech の包みとトレース保存、`ext` = Chrome 拡張）、`examples/web-app/`（widget・サンプルページ・サーバ・語彙設定）、`tests/`、`scripts/`。各モジュールの役割は design.md の分担表にある。

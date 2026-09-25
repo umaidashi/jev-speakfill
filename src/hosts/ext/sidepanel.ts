@@ -1,9 +1,9 @@
-import { Engine, type EngineEvent, type Host } from '../core/engine'
-import { pipeline, type RouteInput, type RouteResult, type Trace } from '../core/pipeline'
+import { Engine, type EngineEvent, type Host } from '../../core/engine'
+import { pipeline, type RouteInput, type RouteResult, type Trace } from '../../core/pipeline'
 import { startSpeech, type SpeechHandle } from '../web/speech'
-import type { Field, JevAsk } from '../core/types'
+import type { Field, JevAsk } from '../../core/types'
 import { TraceLog } from '../web/tracelog'
-import type { SpeakfillConfig } from '../core/config'
+import type { SpeakfillConfig } from '../../core/config'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const toggle = $<HTMLButtonElement>('toggle'), undoBtn = $<HTMLButtonElement>('undo')

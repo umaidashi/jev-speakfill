@@ -1,4 +1,4 @@
-import type { Trace } from '../core/pipeline'
+import type { Trace } from '../../core/pipeline'
 
 // トレースの保存・ダウンロード。永続化先はホストが差し込む（拡張: chrome.storage、web: localStorage）
 const MAX = 500

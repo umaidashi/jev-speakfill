@@ -135,8 +135,8 @@ export function coerce(text: string, field: Field, now: number, cfg: SpeakfillCo
     case 'url': return /^https?:\/\/\S+\.\S+$/.test(t) ? ok(t) : invalid(t)
     case 'color': { const v = cfg.colors[t] ?? (/^#[0-9a-f]{6}$/i.test(t) ? t.toLowerCase() : null); return v ? ok(v) : invalid(t) }
     case 'week': return invalid(t)
-    case 'tel': { const d = digitsOf(t); return d.length < 10 ? { value: t, status: 'short' } : d.length > 11 ? invalid(t) : ok(formatPhone(d)) }
-    case 'zip': { const d = digitsOf(t); return d.length < 7 ? { value: t, status: 'short' } : d.length > 7 ? invalid(t) : ok(formatZip(d)) }
+    case 'tel': { const d = digitsOf(t); return d.length < cfg.telDigits[0] ? { value: t, status: 'short' } : d.length > cfg.telDigits[1] ? invalid(t) : ok(formatPhone(d)) }
+    case 'zip': { const d = digitsOf(t); return d.length < cfg.zipDigits[0] ? { value: t, status: 'short' } : d.length > cfg.zipDigits[1] ? invalid(t) : ok(formatZip(d)) }
   }
   if (c?.maxLength !== undefined && t.length > c.maxLength) return invalid(t)
   if (c?.pattern) { try { if (!new RegExp(`^(?:${c.pattern})$`, 'u').test(t)) return invalid(t) } catch { /* 壊れた pattern は無視 */ } }

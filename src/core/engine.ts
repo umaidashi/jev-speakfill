@@ -1,7 +1,7 @@
 import type { Context } from './context'
 import type { RouteInput, RouteResult, Trace } from './pipeline'
 import type { Field, Placement } from './types'
-import type { SpeakfillConfig } from './config'
+import { DEFAULT_CONFIG, type SpeakfillConfig } from './config'
 
 // ホストが差し込む 4 関数。DOM / chrome API / HTTP はすべてこの外
 export type Host = {
@@ -49,7 +49,7 @@ export class Engine {
       const alive = new Set(this.fields.map((f) => f.id))
       this.filled = Object.fromEntries(Object.entries(this.filled).filter(([id]) => alive.has(id)))
       r = await this.host.route({ fields: this.fields, text, filled: this.filled, ctx: this.ctx, now: this.now(), recent: [...this.recent], config: this.config })
-      this.recent = [...this.recent, text].slice(-3)
+      this.recent = [...this.recent, text].slice(-(this.config?.recentCount ?? DEFAULT_CONFIG.recentCount))
     } catch (e) {
       this.emit({ type: 'error', message: e instanceof Error ? e.message : String(e), text })
       return

@@ -68,3 +68,18 @@ test('設定の instructions（ドメイン説明）が欄選択・選択肢選�
   expect(optionQuestion(0, fields[1], cfg).instructions).toContain('買取フォーム')
   expect(buildQuestions(fields, [{ text: 'A' }], {}).questions.c0.instructions).not.toContain('買取')
 })
+
+test('prompts で Jev の instructions 全文を差し替えられる（プレースホルダ {i} {label} {hint} {sttNote} {instructions}）', () => {
+  const cfg = resolveConfig({
+    prompts: {
+      field: 'FIELD {i} hint={hint} note={sttNote} extra={instructions}',
+      option: 'OPTION {i} label={label}',
+      date: 'DATE {chunk} {label} today={today}',
+    },
+    sttNote: 'N', instructions: 'X',
+  })
+  const { questions } = buildQuestions(fields, [{ text: '東京', hint: '都道府県' }], {}, [], cfg)
+  expect(questions.c0.instructions).toBe('FIELD 0 hint=話者は欄名「都道府県」を明示した。強く考慮せよ。 note=N extra=X')
+  expect(optionQuestion(0, fields[1], cfg).instructions).toBe('OPTION 0 label=都道府県')
+  expect(DEFAULT_CONFIG.prompts.field).toContain('{i}')   // 既定テンプレートは現行の文面
+})
