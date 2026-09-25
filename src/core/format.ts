@@ -87,6 +87,8 @@ export function coerce(text: string, field: Field, now: number): Coerced {
       const v = `${fmtDate(d)}T${fmtTime(tm)}`; return inRange(v, c, (a, b) => a.localeCompare(b)) ? ok(v) : invalid(v)
     }
     case 'month': {
+      const d = parseDate(t, now)                       // 「来年の12月25日」と日まで言われたら年月だけ使う
+      if (d) return ok(`${d.y}-${pad(d.m)}`)
       const { year, rest } = splitYearWord(toHalf(t), now)
       const m = /^(?:(\d{4})[年/])?(\d{1,2})月?$/.exec(rest); if (!m) return invalid(t)
       const mo = Number(m[2]); if (mo < 1 || mo > 12) return invalid(t)

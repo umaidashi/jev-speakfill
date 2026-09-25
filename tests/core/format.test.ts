@@ -47,7 +47,10 @@ test('datetime-local / month', () => {
   bad('9月25日', f('datetime-local'))
   ok('2026年9月', f('month'), '2026-09')
   ok('9月', f('month'), '2026-09')
-  bad('9月25日', f('month'))
+  ok('9月25日', f('month'), '2026-09')            // 日まで言われたら年月だけ使う
+  ok('来年の12月25日', f('month'), '2027-12')
+  ok('来年の12月25', f('month'), '2027-12')
+  bad('13月', f('month'))
 })
 test('number / range: 桁区切り・全角・単位を落とす。min/max/step', () => {
   ok('3000', f('number'), '3000')
