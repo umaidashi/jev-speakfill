@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { collectFields, applyPlacement, restore } from '../../src/ext/dom'
+import { collectFields, applyPlacement, restore } from '../../src/dom'
 
 function page(html: string) {
   document.body.innerHTML = html

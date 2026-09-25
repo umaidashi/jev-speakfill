@@ -1,4 +1,4 @@
-import { applyPlacement, collectFields, restore } from './dom'
+import { applyPlacement, collectFields, restore } from '../dom'
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg.type === 'collect') reply(collectFields(document))

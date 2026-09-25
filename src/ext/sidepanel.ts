@@ -1,26 +1,19 @@
-import { segment } from '../core/segment'
-import { route } from '../core/route'
-import { applyContext, gate, type Context } from '../core/context'
-import type { Field, JevAsk, Placement } from '../core/types'
+import { Engine, type EngineEvent, type Host } from '../core/engine'
+import { pipeline } from '../core/pipeline'
+import { startSpeech, type SpeechHandle } from '../web/speech'
+import type { Field, JevAsk } from '../core/types'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const toggle = $<HTMLButtonElement>('toggle'), undoBtn = $<HTMLButtonElement>('undo')
 const status = $('status'), interimEl = $('interim'), log = $('log'), sent = $<HTMLPreElement>('sent')
 
-let listening = false
-let fields: Field[] = []
-let filled: Record<string, string> = {}
-const ctx: Context = { hint: undefined, last: undefined }
-const undoStack: { fieldId: string; prev: string; label: string }[] = []
-
-async function activeTabId(): Promise<number> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  if (!tab?.id) throw new Error('アクティブタブなし')
-  return tab.id
-}
 let tabId: number | null = null   // 🎤 開始時に束縛。途中でタブを切り替えても別タブに書かない
 async function toTab(msg: unknown) {
-  if (tabId === null) tabId = await activeTabId()
+  if (tabId === null) {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (!tab?.id) throw new Error('アクティブタブなし')
+    tabId = tab.id
+  }
   try {
     return await chrome.tabs.sendMessage(tabId, msg)
   } catch {
@@ -30,11 +23,19 @@ async function toTab(msg: unknown) {
   }
 }
 
+// Jev は service worker 経由（API キーはそこにしか無い）
 const ask: JevAsk = async (state, questions) => {
   sent.textContent = JSON.stringify({ state, questions }, null, 1)
   const res = await chrome.runtime.sendMessage({ type: 'ask', state, questions })
   if (!res?.ok) throw new Error(res?.error ?? 'unknown')
   return res.answers
+}
+
+const host: Host = {
+  fields: () => toTab({ type: 'collect' }) as Promise<Field[]>,
+  apply: (placement) => toTab({ type: 'apply', placement }) as Promise<{ fieldId: string; prev: string } | null>,
+  restore: async (fieldId, prev) => { await toTab({ type: 'restore', fieldId, prev }) },
+  route: (input) => pipeline(input, ask),
 }
 
 // ページ由来の文字列（欄ラベル・STT）を扱うので innerHTML は使わない
@@ -47,95 +48,48 @@ function addLog(text: string, cls = '', strong?: string, small?: string) {
   log.prepend(div)
 }
 
-async function collect(): Promise<Field[]> {
-  const f = (await toTab({ type: 'collect' })) as Field[]
-  const alive = new Set(f.map((x) => x.id))
-  filled = Object.fromEntries(Object.entries(filled).filter(([id]) => alive.has(id)))  // 消えた欄の filled を捨てる
-  return f
-}
-
-async function onFinal(text: string) {
-  let placements: Placement[]
-  try {
-    fields = await collect()   // SPA 対策: 確定ごとに取り直す（id は要素ごとに安定）
-    const { chunks, direct } = applyContext(segment(text, true, fields), fields, ctx, Date.now())
-    if (ctx.hint && chunks.length === 0 && direct.length === 0) status.textContent = `「${ctx.hint}」の値を待っています`
-    placements = chunks.length ? await route(fields, chunks, filled, ask) : []
-    // 連結された chunk（「山田 太郎」）は部分一致で配置済み扱い（ログ用のゆるい判定）
-    for (const c of chunks) if (!placements.some((p) => p.chunk.includes(c.text))) addLog(`未配置: ${c.text}`, 'none')
-    const g = gate([...direct, ...placements], fields, ctx, Date.now())
-    for (const p of g.pending) addLog(`${fields.find((f) => f.id === p.fieldId)?.label}: ${p.value}（桁が足りません。続きを待っています）`, 'none')
-    for (const p of g.rejected) addLog(`${fields.find((f) => f.id === p.fieldId)?.label}: ${p.value}（形式不正のため未入力）`, 'err')
-    placements = g.apply
-  } catch (e) {
-    addLog(`エラー: ${(e as Error).message} — 「${text}」は未配置`, 'err')
-    return
+function onEvent(ev: EngineEvent) {
+  switch (ev.type) {
+    case 'placed': addLog(`${ev.label} ← `, '', ev.value, `(${ev.confidence.toFixed(2)})`); break
+    case 'pending': addLog(`${ev.label}: ${ev.value}（桁が足りません。続きを待っています）`, 'none'); break
+    case 'rejected': addLog(`${ev.label}: ${ev.value}（形式不正のため未入力）`, 'err'); break
+    case 'unplaced': addLog(`未配置: ${ev.text}`, 'none'); break
+    case 'waiting': status.textContent = `「${ev.hint}」の値を待っています`; break
+    case 'failed': addLog(`書き込み失敗: ${ev.label} ← ${ev.value}`, 'none'); break
+    case 'undone': addLog(`取り消し: ${ev.label}`); break
+    case 'error': addLog(`エラー: ${ev.message} — 「${ev.text}」は未配置`, 'err'); break
   }
-  for (const p of placements) {
-    const r = (await toTab({ type: 'apply', placement: p })) as { fieldId: string; prev: string } | null
-    const label = fields.find((f) => f.id === p.fieldId)?.label ?? p.fieldId
-    if (!r) { addLog(`書き込み失敗: ${label} ← ${p.value}`, 'none'); continue }
-    filled[p.fieldId] = p.value
-    undoStack.push({ ...r, label })
-    undoBtn.disabled = false
-    addLog(`${label} ← `, '', p.value, `(${p.confidence.toFixed(2)})`)
-  }
+  undoBtn.disabled = !engine.canUndo
 }
 
-undoBtn.onclick = async () => {
-  const last = undoStack.pop()
-  if (!last) return
-  await toTab({ type: 'restore', fieldId: last.fieldId, prev: last.prev })
-  delete filled[last.fieldId]
-  addLog(`取り消し: ${last.label}`)
-  undoBtn.disabled = undoStack.length === 0
-}
-
-// Web Speech。continuous でも Chrome が勝手に onend するので listening 中は再開する（Review Focus 5）。
-// ただしマイク拒否・デバイスなしは再開すると無限ループになるので止める。
-const SR: { new (): SpeechRecognition } = (window as any).webkitSpeechRecognition ?? (window as any).SpeechRecognition
-const FATAL = new Set(['not-allowed', 'audio-capture', 'service-not-allowed', 'language-not-supported', 'network'])  // network は spec どおり停止（再開ループ防止）
-let rec: SpeechRecognition | null = null
+const engine = new Engine(host, onEvent)
+let speech: SpeechHandle | null = null
 
 function stop(msg: string) {
-  listening = false; rec?.stop(); rec = null
+  speech?.stop(); speech = null
   toggle.textContent = '🎤 開始'; status.textContent = msg; interimEl.textContent = ''
 }
 
-function start() {
-  rec = new SR()
-  rec.lang = 'ja-JP'; rec.continuous = true; rec.interimResults = true
-  rec.onresult = (ev) => {
-    let interim = ''
-    for (let i = ev.resultIndex; i < ev.results.length; i++) {
-      const r = ev.results[i]
-      if (r.isFinal) { const t = r[0].transcript.trim(); if (t) void onFinal(t) }
-      else interim += r[0].transcript
-    }
-    interimEl.textContent = interim
-  }
-  rec.onerror = (ev) => {
-    if (ev.error === 'not-allowed') {
-      stop('マイクが未許可です。許可ページを開きました')
-      void chrome.tabs.create({ url: chrome.runtime.getURL('grant.html') })
-    } else if (FATAL.has(ev.error)) stop(`音声エラー: ${ev.error}`)
-    else status.textContent = `音声エラー: ${ev.error}`
-  }
-  rec.onend = () => { if (listening) start() }
-  rec.start()
-  status.textContent = '聞いています…'
-}
+undoBtn.onclick = () => engine.undo()
 
 toggle.onclick = async () => {
-  if (listening) return stop('停止')
+  if (speech) return stop('停止')
   tabId = null
+  let fields: Field[]
   try {
-    fields = await collect()
+    fields = await host.fields()
   } catch {
     status.textContent = 'このページでは使えません（chrome:// や Web Store など）'; return
   }
   if (fields.length === 0) { status.textContent = '入力欄が見つかりません'; return }
-  listening = true
   toggle.textContent = '⏹ 停止'
-  start()
+  speech = startSpeech({
+    onFinal: (t) => { void engine.final(t) },
+    onInterim: (t) => { interimEl.textContent = t },
+    onStatus: (m) => { status.textContent = m },
+    onFatal: (err) => {
+      stop(err === 'not-allowed' ? 'マイクが未許可です。許可ページを開きました' : `音声エラー: ${err}`)
+      if (err === 'not-allowed') void chrome.tabs.create({ url: chrome.runtime.getURL('grant.html') })
+    },
+  })
 }
