@@ -2,9 +2,9 @@ import { buildQuestions, NONE, THRESHOLD, optionQuestion } from './jev'
 import { normalize } from './normalize'
 import type { Chunk, Field, JevAsk, Placement, Question } from './types'
 
-export async function route(fields: Field[], chunks: Chunk[], filled: Record<string, string>, ask: JevAsk): Promise<Placement[]> {
+export async function route(fields: Field[], chunks: Chunk[], filled: Record<string, string>, ask: JevAsk, recent: string[] = []): Promise<Placement[]> {
   if (chunks.length === 0 || fields.length === 0) return []
-  const { state, questions } = buildQuestions(fields, chunks, filled)
+  const { state, questions } = buildQuestions(fields, chunks, filled, recent)
   const answers = await ask(state, questions)
   // 1 往復目で選ばれた欄のうち、選択肢を持つものだけ 2 往復目で option を選ぶ
   const chosen = chunks.map((_, i) => {

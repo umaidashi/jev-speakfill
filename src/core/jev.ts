@@ -16,7 +16,7 @@ const STT_NOTE = '入力は音声認識の文字起こしで、同音異義の�
 
 // 1 往復目: chunk ごとに「どの欄か」。2 往復目: 選ばれた欄が選択肢を持つときだけ「どの選択肢か」。
 // 全欄分の option 質問を投機的に同梱すると入力トークンが 欄数×chunk 数 で膨らむ（実測 1.4 倍、latency 差は ~150ms）ので分ける
-export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<string, string>) {
+export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<string, string>, recent: string[] = []) {
   const questions: Record<string, Question> = {}
   chunks.forEach((chunk, i) => {
     const criteria: Record<string, string> = {}
@@ -31,7 +31,8 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
       instructions:
         `\`chunks[${i}].text\` は日本語フォームのどの入力欄に入れるべき値か。欄名は発話されないことが多い。${STT_NOTE}` +
         (chunk.hint ? `話者は欄名「${chunk.hint}」を明示した。強く考慮せよ。` : '') +
-        `既に \`filled\` にある欄は、値の種類が明らかに一致するときだけ選べ。`,
+        `既に \`filled\` にある欄は、値の種類が明らかに一致するときだけ選べ。` +
+        `\`recent\` は直前の発話（古い順）。同じ発話内の他の chunk と recent から、この値が何の続きかを読み取れ。`,
       criteria,
     }
   })
@@ -39,6 +40,7 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
     fields: fields.map(({ id, label, kind, options }) => ({ id, label, kind, options })),
     chunks,
     filled,
+    recent,
   }
   return { state, questions }
 }

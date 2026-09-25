@@ -27,6 +27,7 @@ export class Engine {
   private ctx: Context = { hint: undefined, last: undefined }
   private undoStack: { fieldId: string; prev: string; label: string }[] = []
   private fields: Field[] = []
+  private recent: string[] = []   // 直前の発話（Jev に文脈として渡す）
   private queue: Promise<void> = Promise.resolve()
 
   constructor(private host: Host, private emit: (ev: EngineEvent) => void, private now: () => number = Date.now) {}
@@ -46,7 +47,8 @@ export class Engine {
       this.fields = await this.host.fields()   // SPA 対策: 発話ごとに取り直す（id は要素ごとに安定）
       const alive = new Set(this.fields.map((f) => f.id))
       this.filled = Object.fromEntries(Object.entries(this.filled).filter(([id]) => alive.has(id)))
-      r = await this.host.route({ fields: this.fields, text, filled: this.filled, ctx: this.ctx, now: this.now() })
+      r = await this.host.route({ fields: this.fields, text, filled: this.filled, ctx: this.ctx, now: this.now(), recent: [...this.recent] })
+      this.recent = [...this.recent, text].slice(-3)
     } catch (e) {
       this.emit({ type: 'error', message: e instanceof Error ? e.message : String(e), text })
       return

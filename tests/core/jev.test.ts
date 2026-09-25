@@ -29,7 +29,7 @@ test('欄選択・option 選択とも同音異義の注意が instructions に�
 
 test('state に欄と chunk と filled が入り、ページ本文は含まない', () => {
   const { state } = buildQuestions(fields, [{ text: '山田太郎' }], { name: '前の値' }) as { state: Record<string, unknown> }
-  expect(Object.keys(state).sort()).toEqual(['chunks', 'fields', 'filled'])
+  expect(Object.keys(state).sort()).toEqual(['chunks', 'fields', 'filled', 'recent'])
 })
 
 test('閾値', () => expect(THRESHOLD).toBe(0.5))
@@ -50,4 +50,10 @@ test('価格/重量/数量 の欄は criteria に単位を書く（「100円」�
   expect(questions.c0.criteria.price).toContain('円')
   expect(questions.c0.criteria.weight).toContain('g')
   expect(questions.c0.criteria.qty).toContain('個')
+})
+
+test('直前の発話（recent）を state に入れ、instructions で参照させる', () => {
+  const { state, questions } = buildQuestions(fields, [{ text: '20' }], {}, ['幅100 高さ100'])
+  expect((state as { recent: string[] }).recent).toEqual(['幅100 高さ100'])
+  expect(questions.c0.instructions).toContain('recent')
 })

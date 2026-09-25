@@ -89,3 +89,11 @@ test('final が連続しても直列に処理する', async () => {
   await Promise.all([e.final('a'), e.final('b')])
   expect(order).toEqual(['a', 'b'])
 })
+
+test('直前 3 発話を recent として route に渡す', async () => {
+  const { host, inputs } = fakeHost({})
+  const e = new Engine(host, () => {})
+  for (const t of ['a', 'b', 'c', 'd']) await e.final(t)
+  expect(inputs[3].recent).toEqual(['a', 'b', 'c'])
+  expect(inputs[0].recent).toEqual([])
+})

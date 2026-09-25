@@ -10,6 +10,7 @@ export type RouteInput = {
   filled: Record<string, string>    // 入力済み（fieldId → 値）
   ctx: Context                      // 発話をまたぐ文脈（呼び出し側が持ち回る）
   now: number
+  recent?: string[]                 // 直前の発話（古い順、最大 3 件）。Jev の state に入れる
 }
 export type RouteResult = {
   apply: Placement[]
@@ -45,7 +46,7 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
   }
   const seg = segment(input.text, true, input.fields)
   const { chunks, direct } = applyContext(seg, input.fields, ctx, input.now)
-  const routed = chunks.length ? await route(input.fields, chunks, input.filled, askTraced) : []
+  const routed = chunks.length ? await route(input.fields, chunks, input.filled, askTraced, input.recent ?? []) : []
   const unplaced = chunks.filter((c) => !routed.some((p) => p.chunk.includes(c.text))).map((c) => c.text)
   const g = gate([...direct, ...routed], input.fields, ctx, input.now)
   const trace: Trace = {

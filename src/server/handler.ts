@@ -13,6 +13,7 @@ export async function handleRoute(body: string, ask: JevAsk): Promise<{ status: 
   input.filled ??= {}
   input.ctx = { hint: input.ctx?.hint ?? undefined, last: input.ctx?.last ?? undefined }
   input.now ??= Date.now()
+  input.recent = Array.isArray(input.recent) ? input.recent.slice(-3).map(String) : []
   try {
     return { status: 200, body: await pipeline(input, ask) }
   } catch (e) {
