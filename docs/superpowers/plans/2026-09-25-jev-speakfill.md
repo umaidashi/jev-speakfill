@@ -1077,7 +1077,6 @@ undoBtn.onclick = async () => {
 // Web Speech。continuous でも Chrome が勝手に onend するので listening 中は再開する（Review Focus 5）
 const SR = (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition ?? window.SpeechRecognition
 let rec: SpeechRecognition | null = null
-let finalSoFar = ''
 
 function start() {
   rec = new SR()
@@ -1109,7 +1108,7 @@ toggle.onclick = async () => {
     status.textContent = 'このページでは使えません（再読み込みしてください）'; return
   }
   if (fields.length === 0) { status.textContent = '入力欄が見つかりません'; return }
-  listening = true; finalSoFar = ''
+  listening = true
   toggle.textContent = '⏹ 停止'
   start()
 }

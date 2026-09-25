@@ -41,8 +41,8 @@ type Chunk = { text: string; hint?: string }   // hint = 剥がした欄ラベ�
 type Placement = { fieldId: string; value: string; chunk: string; confidence: number }
 type JevAsk = (state: unknown, questions: Record<string, Question>) => Promise<Record<string, Answer>>
 
-segment(prevFinal: string, text: string, isFinal: boolean): Chunk[]
-route(fields: Field[], chunks: Chunk[], ask: JevAsk): Promise<Placement[]>
+segment(text: string, isFinal: boolean, fields: Field[]): Chunk[]   // fields は hint（欄ラベル語の剥がし）用
+route(fields: Field[], chunks: Chunk[], filled: Record<string,string>, ask: JevAsk): Promise<Placement[]>
 ```
 
 ### segment（コード側、Jev 不使用）
