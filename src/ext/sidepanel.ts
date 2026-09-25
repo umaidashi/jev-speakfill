@@ -1,5 +1,5 @@
 import { Engine, type EngineEvent, type Host } from '../core/engine'
-import { pipeline, type Trace } from '../core/pipeline'
+import { pipeline, type RouteInput, type RouteResult, type Trace } from '../core/pipeline'
 import { startSpeech, type SpeechHandle } from '../web/speech'
 import type { Field, JevAsk } from '../core/types'
 import { TraceLog } from '../web/tracelog'
@@ -39,11 +39,20 @@ const ask: JevAsk = async (state, questions) => {
   return res.answers
 }
 
+// オプションでサーバ URL が設定されていれば /route に投げる（キーはサーバ側、トレースはサーバのファイルにも残る）
+let serverUrl = ''
+async function remoteRoute(input: RouteInput): Promise<RouteResult> {
+  const res = await fetch(`${serverUrl}/route`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.message ?? `HTTP ${res.status}`)
+  return body as RouteResult
+}
+
 const host: Host = {
   fields: () => toTab({ type: 'collect' }) as Promise<Field[]>,
   apply: (placement) => toTab({ type: 'apply', placement }) as Promise<{ fieldId: string; prev: string } | null>,
   restore: async (fieldId, prev) => { await toTab({ type: 'restore', fieldId, prev }) },
-  route: (input) => pipeline(input, ask),
+  route: (input) => (serverUrl ? remoteRoute(input) : pipeline(input, ask)),
 }
 
 // ページ由来の文字列（欄ラベル・STT）を扱うので innerHTML は使わない
@@ -84,7 +93,10 @@ function onEvent(ev: EngineEvent) {
   undoBtn.disabled = !engine.canUndo
 }
 
-$('build').textContent = `build ${__BUILD__}（古ければ chrome://extensions で 🔄）`
+void chrome.storage.local.get('serverUrl').then(({ serverUrl: u }) => {
+  serverUrl = (u ?? '') as string
+  $('build').textContent = `build ${__BUILD__} / ${serverUrl ? `サーバ経由 ${serverUrl}` : 'BYOK 直接'}（古ければ chrome://extensions で 🔄）`
+})
 const engine = new Engine(host, onEvent)
 let speech: SpeechHandle | null = null
 

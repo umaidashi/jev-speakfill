@@ -2,6 +2,8 @@
 <style>body{font:14px system-ui;max-width:560px;margin:24px auto} input{width:100%;font-size:14px;padding:6px} button{font-size:14px;padding:6px 14px;margin-top:8px}</style>
 <h2>jev-speakfill</h2>
 <label>TypeSafe API キー<br><input id="key" type="password" placeholder="ts-..."></label>
+<label style="display:block;margin-top:12px">ルーティングサーバ URL（任意）<br><input id="server" placeholder="http://localhost:8787"></label>
+<p style="color:#666">設定すると Jev をここ経由で呼ぶ（API キーはサーバ側）。空なら上のキーで直接呼ぶ（BYOK）。サーバは発話ごとのトレースを <code>logs/traces.jsonl</code> に書く。</p>
 <button id="save">保存</button> <span id="msg"></span>
 <p>キーは <code>chrome.storage.local</code> にのみ保存され、拡張の service worker からしか使われません。ページ側のスクリプトには渡りません。</p>
 <script type="module" src="options.js"></script>

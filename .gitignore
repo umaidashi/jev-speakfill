@@ -3,3 +3,4 @@ dist
 .env
 .superpowers
 .DS_Store
+logs
