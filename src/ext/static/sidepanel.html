@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><title>jev-speakfill</title>
+<style>
+  body{font:14px system-ui;margin:12px} button{font-size:16px;padding:6px 12px}
+  #interim{color:#888;min-height:1.5em} #log{margin-top:8px} .item{border-bottom:1px solid #eee;padding:4px 0}
+  .none{color:#a00} .err{color:#a00;font-weight:bold} details{margin-top:8px} pre{font-size:11px;white-space:pre-wrap}
+</style>
+<button id="toggle">🎤 開始</button> <button id="undo" disabled>↩ 取り消し</button> <span id="status"></span>
+<div id="interim"></div>
+<div id="log"></div>
+<details><summary>Jev に送った内容（直近）</summary><pre id="sent"></pre></details>
+<script type="module" src="sidepanel.js"></script>
