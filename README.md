@@ -1,46 +1,64 @@
-# jev-speakfill
+# jev-speakfill — 話すだけで日本語フォームが埋まる
 
-話すだけで、画面に見えている日本語フォームの正しい欄に入力する。欄名を言う必要はない（言ってもいい）。
+画面に出ているフォームに向かって、値だけを話す。欄名は言わなくていい。
 
 ```
 「ルイヴィトン ハンドバッグ ネバーフル レザー 赤 金具はゴールド 状態は B 箱あり 保存袋あり」
- → ブランド=Louis Vuitton / カテゴリ=ハンドバッグ / モデル=ネバーフル / 素材=レザー / 色=赤
-   / 金具の色=ゴールド / 状態ランク=B / 箱 ☑ / 保存袋 ☑
+
+ブランド = Louis Vuitton   カテゴリ = ハンドバッグ   モデル = ネバーフル
+素材     = レザー          色       = 赤            金具の色 = ゴールド
+状態ランク = B             箱 ☑    保存袋 ☑
 ```
 
-ルーティングは [TypeSafe Jev](https://typesafe.ai)。候補の欄・選択肢から**選ぶだけで、値は生成しない**。text 欄には音声認識の文字列がそのまま入り、選択肢欄の表記揺れ（ヴィトン → Louis Vuitton、川 → 革、ブラック → 黒、ほぼ新品 → A ランク）は Jev が吸収する。区切り方・欄名の扱い・数字の連結・型と桁数の検証・書き込みはすべてコード。
+中古ブランドバッグの商品登録から始めた。両手で品物を持ちながら、ブランド・素材・状態・寸法を十数個の欄に打ち込む作業が、毎回同じで、毎回手を止める。音声入力は昔からあるが、「どの欄に入れるか」を人が選ぶなら手は空かない。欄を選ぶところまで機械にやらせたかった。
 
-ホストは 3 つ。コア（`src/core/`）は DOM も mic も知らないので React / iOS にもそのまま載る。
+## 値は作らせない。欄と選択肢を「選ぶ」ことだけを Jev に任せる
 
-| ホスト | 用途 | Jev キー |
-|---|---|---|
-| Chrome 拡張 (`src/ext/`) | 任意のページで試す最初のホスト | BYOK、またはサーバ経由 |
-| web widget (`src/web/`) | 既存ページに `<script>` で後付け | サーバ |
-| サーバ (`src/server/`) | `POST /route`。語彙設定とトレースログを持つ | `.env` |
+ルーティングには [TypeSafe Jev](https://typesafe.ai) を使う。発話の断片ごとに「どの欄の値か」を候補から選ばせ、欄が select や radio なら続けて「どの選択肢か」を選ばせる。Jev が返すのは候補の ID と確信度だけで、文字列は一切生成しない。
 
-## クイックスタート
+この分担にしたのは、間違いの原因を切り分けたいからだ。text 欄には音声認識の文字列がそのまま入るので、誤りがあれば認識の問題だと分かる。選択肢欄では、Jev が正式名称の選択肢から読みと意味で選ぶ。「ヴィトン」は Louis Vuitton に、「川」は 革 に、「ほぼ新品」は A ランクに入る。表記揺れの辞書は持っていない。日付や金額のように形式が決まっている値は、`type=date` や `type=number` に対する変換をコードが受け持つ（「来年の8月6日」→ `2027-08-06`、「15万8000円」→ `158000`）。語彙表で読めない日付だけ、コードが候補の日付を列挙して Jev に選ばせる。
+
+区切り方、欄名の扱い、桁の連結、型と桁数の検証、DOM への書き込みはすべて決定的なコードで、テストがある。
+
+## 実 API で 70 発話中 70、ユニットテスト 119 本
+
+`npm run eval` が `tests/fixtures/ja.json` の発話を実際の Jev に流し、段階ごとの結果を [docs/eval/latest.md](docs/eval/latest.md) に書く。現在 70/70。「赤革ルイヴィトン」のような区切りなし、「新品ではない」のような否定、「幅50 高さ60町200」のように音声認識が「マチ」を「町」にした発話も含む。1 発話あたり Jev は 1〜2 往復、合計で入力 2,600 トークン前後。
+
+`npm test` は core / dom / server の 119 本（Vitest）。Jev はモックで、分割・文脈・型変換・状態機械の挙動を固定している。
+
+## 5 分で試す
 
 ```
 npm install && npm run build
-cp .env.example .env       # TYPESAFE_API_KEY=... （サーバ / eval 用）
-npm run dev                # http://localhost:8787 で web サンプル
+cp .env.example .env       # TYPESAFE_API_KEY=...
+npm run dev                # http://localhost:8787 にサンプルフォーム
 ```
-Chrome 拡張は `chrome://extensions` で `dist/` を読み込み、オプションで API キー（またはサーバ URL）を設定して、`examples/form.html` を開いて side panel の 🎤。
 
-## ドキュメント
-- [docs/usage.md](docs/usage.md) — 使い方（拡張 / web / サーバ）、語彙・ヒントの設定、自分のアプリへの組み込み、権限とデータ
-- [docs/design.md](docs/design.md) — 設計。処理の流れ、コードと Jev の分担、アーキテクチャ、既知の弱点、トレース、設計判断
-- [docs/eval/latest.md](docs/eval/latest.md) — 実 API での評価結果（発話 → 各段階 → 配置、現在 66/66）
-- [spec/](spec/) — 開発の経緯（競合調査、着手時の spec と実装 plan）。更新しない
+ブラウザで開いて右下の 🎤 を押し、上の例のように話す。Jev キーはサーバにしか置かないので、ページ側に鍵は出ない。
 
-## 構成
-- `src/core/` — `config`（語彙・閾値）/ `presets` / `segment`（chunk 化）/ `context`（発話をまたぐ文脈・検証ゲート）/ `format`（型ごとの正規化）/ `jev`（質問生成）/ `route`（採否）/ `pipeline`（全段階）/ `engine`（状態機械）
-- `src/dom/` — 欄収集・書き込み・Undo（拡張と widget が共用）
-- `src/web/` — Web Speech の包み、トレース保存、フロートボタン widget、サンプルページ
-- `src/server/` — `POST /route` + 静的配信
-- `src/ext/` — MV3（side panel / content script / service worker / options / grant）
-- `tests/` — Vitest（117 本）。`tests/fixtures/ja.json` は eval の発話と期待値
-- `scripts/` — `eval.ts`（実 API 評価）、`trace-tail.py`（トレースの整形）
+Chrome 拡張として任意のページで使うなら、まず `chrome://extensions` で `dist/` を読み込む。次にオプション画面で API キー（またはサーバ URL `http://localhost:8787`）を入れる。あとは対象のページで side panel を開き 🎤 を押す。初回はマイク許可のページが自動で開く。手順の詳細と side panel の読み方は [docs/usage.md](docs/usage.md)。
 
-## 開発
-`npm test` / `npm run typecheck` / `npm run build` / `npm run dev` / `npm run eval`。作業ブランチは `feat/mvp`、区切りで `main` に fast-forward。
+## ホストは 3 つ、コアは 1 つ
+
+| ホスト | 使いどころ | Jev キーの置き場 |
+|---|---|---|
+| Chrome 拡張 `src/ext/` | 手元の任意のページで試す | 拡張内に自分の鍵を保存（BYOK）か、サーバ経由 |
+| web widget `src/web/` | 既存ページに `<script>` 1 行で後付け | サーバ |
+| サーバ `src/server/` | `POST /route`。語彙設定とトレースログを持つ | `.env` |
+
+コア `src/core/` は DOM もマイクも知らない。ホストが渡すのは `fields / apply / restore / route` の 4 関数だけなので、React のフォーム state や iOS（`SFSpeechRecognizer` → `/route`）にも同じコアが載る。ドメインの語彙（同義語・単位・数値扱いにする欄名）はコアに固定せず、JSON の設定でホストから注入する。
+
+## できないこと
+
+- ふりがな欄は埋まらない。音声認識が漢字にしてしまう
+- メールアドレス・URL は音声だと崩れる。形式チェックで弾くだけ
+- 英語の文は `ja-JP` の認識器では拾えない（単語はカタカナになる）
+- 「底面に傷あり」を 備考 と読むか 状態ランク D と読むかは Jev の判断で揺れる。どちらも間違いではない
+
+## ドキュメントと構成
+
+- [docs/usage.md](docs/usage.md) — 拡張 / web / サーバの使い方、語彙・ヒントの設定、自分のアプリへの組み込み、権限とデータ
+- [docs/design.md](docs/design.md) — 処理の流れ、コードと Jev の分担、アーキテクチャ、設計判断
+- [spec/](spec/) — 着手時の競合調査・設計 spec・実装 plan。更新しない
+
+コードは `src/core/`（ルーティングの全段階）、`src/dom/`（欄の収集と書き込み）、`src/ext/` `src/web/` `src/server/`（3 つのホスト）、`tests/`、`scripts/`。各モジュールの役割は design.md の分担表にある。
