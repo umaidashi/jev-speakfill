@@ -51,6 +51,9 @@ function isVisible(el: HTMLElement): boolean {
   return true
 }
 
+// ponytail: STT は必ず漢字化するので、読み欄は MVP 対象外。業務版ではサーバ側で漢字→かな変換する
+const KANA_LABEL = /ふりがな|フリガナ|かな|カナ/
+
 export function collectFields(root: Document): Field[] {
   registry.clear()
   const out: Field[] = []
@@ -65,6 +68,7 @@ export function collectFields(root: Document): Field[] {
   for (const el of all) {
     if (!isVisible(el)) continue
     if (el instanceof HTMLInputElement && isExcluded(el)) continue
+    if (!(el instanceof HTMLSelectElement) && KANA_LABEL.test(labelOf(el))) continue
     if (el instanceof HTMLSelectElement) {
       add(el, el, { label: labelOf(el), kind: 'select', options: Array.from(el.options).map((o) => o.text.trim()) })
     } else if (el instanceof HTMLInputElement && el.type === 'radio') {

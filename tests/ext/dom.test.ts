@@ -9,12 +9,12 @@ function page(html: string) {
 test('label for / aria-label / placeholder / name / 隣接テキストの順で label を作る', () => {
   const fields = page(`
     <label for="a">氏名</label><input id="a">
-    <input id="b" aria-label="ふりがな">
+    <input id="b" aria-label="ニックネーム">
     <input id="c" placeholder="メール">
     <input id="d" name="tel">
     <div>住所</div><input id="e">
   `)
-  expect(fields.map((f) => f.label)).toEqual(['氏名', 'ふりがな', 'メール', 'tel', '住所'])
+  expect(fields.map((f) => f.label)).toEqual(['氏名', 'ニックネーム', 'メール', 'tel', '住所'])
 })
 
 test('password / cc-* / one-time-code / hidden / disabled / readonly は除外', () => {
@@ -23,6 +23,16 @@ test('password / cc-* / one-time-code / hidden / disabled / readonly は除外',
     <input type="hidden"><input disabled><input readonly><input id="ok">
   `)
   expect(fields).toHaveLength(1)
+})
+
+test('ふりがな/フリガナ/カナ 欄は除外（STT が漢字化するため MVP 対象外）', () => {
+  const fields = page(`
+    <label for="a">氏名</label><input id="a">
+    <label for="b">ふりがな</label><input id="b">
+    <label for="c">フリガナ</label><input id="c">
+    <input id="d" placeholder="氏名（カナ）">
+  `)
+  expect(fields.map((f) => f.label)).toEqual(['氏名'])
 })
 
 test('select / radio / checkbox は kind と options を持つ', () => {

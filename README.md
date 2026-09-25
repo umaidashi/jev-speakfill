@@ -23,6 +23,7 @@
 - 音声: Chrome の Web Speech API → Google
 - 欄のラベル・種別・選択肢と、発話テキスト: TypeSafe API
 - ページ本文・URL は送らない。password / クレジットカード / ワンタイムコード欄は対象外
+- ふりがな/フリガナ/カナ欄も対象外（音声認識が漢字化するため。業務版ではサーバ側で変換する想定）。メールアドレスも音声では崩れるので非推奨
 - 何を送ったかは side panel の「Jev に送った内容」で見られる
 
 ## 構成
@@ -30,4 +31,4 @@
 - `src/ext/` — MV3 ホスト（side panel / content script / service worker）
 
 ## 開発
-`npm test` / `npm run typecheck` / `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し一致率を出す。現在 24/25）
+`npm test` / `npm run typecheck` / `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し一致率を出す。現在 21/22）
