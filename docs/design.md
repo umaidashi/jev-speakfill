@@ -79,4 +79,4 @@ core/pipeline.ts segment → context → route → gate。ブラウザでも Nod
 - **1 往復目の閾値 0.5**。0.35 では「バッグ」→ 氏名 (0.45) のような迷いが通った
 - **語彙はコアに固定しない**。`SpeakfillConfig` の DEFAULT は日本語一般の最小、ドメイン語彙はプリセット/設定で注入（`docs/usage.md`）
 - **サーバはステートレス**。`ctx`（欄名ヒントと直前の配置）と `recent`（直前 3 発話）はクライアントが持ち回る
-- 経緯と代替案は `docs/archive/`（着手時の spec と plan、競合調査）。更新しない
+- 経緯と代替案は `spec/`（着手時の spec と plan、競合調査）。更新しない
