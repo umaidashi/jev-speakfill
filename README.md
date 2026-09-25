@@ -41,7 +41,7 @@
 | 段階 | ファイル | やること | 誰が |
 |---|---|---|---|
 | 音声→文字 | Web Speech (side panel) | `ja-JP` の文字起こし。interim は表示のみ、final だけ次へ | Google |
-| ① chunk 化 | `core/segment.ts` | 読点・空白・「ラベル語+は/が/で」で割る。さらに `Intl.Segmenter`（ICU、内蔵）で単語に割り、助詞・「です」を落とす（「赤革ルイヴィトン」→ 赤/革/ルイヴィトン、「東京都在住の女性です」→ 東京/都/在住/女性）。割りすぎは戻す（カタカナ同士・ひらがな同士・漢字+ひらがな）。同じ断片由来の語は `glue` 付き。空白区切りの数字は結合。先頭の欄名（「電話は」）を剥がして `hint` に | コード |
+| ① chunk 化 | `core/segment.ts` | 読点・空白・「ラベル語+は/が/で」で割る。さらに `Intl.Segmenter`（ICU、内蔵）で単語に割り、助詞・「です」を落とす（「赤革ルイヴィトン」→ 赤/革/ルイヴィトン、「東京都在住の女性です」→ 東京/都/在住/女性）。割りすぎは戻す（カタカナ同士・ひらがな同士・漢字+ひらがな）。否定・除外（「新品ではない」「赤以外」）を含む chunk は割らず丸ごと Jev に渡す（割ると意味が反転する。丸ごとなら Jev が「中古」を選ぶ）。同じ断片由来の語は `glue` 付き。空白区切りの数字は結合。先頭の欄名（「電話は」）を剥がして `hint` に | コード |
 | ② 文脈 | `core/context.ts` `applyContext` | 欄名だけの chunk（「郵便番号」）→ 値にせず次の chunk の `hint` に。直前 5 秒以内に数字欄へ置いていて数字だけの chunk が来た → Jev を呼ばずその欄に連結。数字の先頭ハイフン除去 | コード |
 | ③-1 欄の選択 | `core/jev.ts` `buildQuestions` → `core/route.ts` | chunk ごとに Choice「どの欄の値か」。criteria = 欄 ID + `none`。state = 欄一覧（label/kind/options）+ chunk + 入力済み値。`hint` があれば instructions に明示。同音異義の注意も書く | **Jev** |
 | ③-2 選択肢 | `core/jev.ts` `optionQuestion` → `route.ts` | ③-1 で選ばれた欄が select/radio/checkbox のときだけ、Choice「どの選択肢か」（+ `none`）。川→革 はここで吸収される | **Jev** |
@@ -104,4 +104,4 @@ core/pipeline.ts segment → context → route → gate。ブラウザでも Nod
 - `src/ext/` — MV3 ホスト（side panel / content script / service worker）
 
 ## 開発
-`npm test` / `npm run typecheck` / `npm run dev`（web サンプル）/ `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し、`docs/eval/latest.md` に段階ごとの結果を書く。現在 51/51）
+`npm test` / `npm run typecheck` / `npm run dev`（web サンプル）/ `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し、`docs/eval/latest.md` に段階ごとの結果を書く。現在 56/56）

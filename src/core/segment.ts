@@ -57,6 +57,8 @@ const JAPANESE_ONLY = /^[ぁ-ゖァ-ヺー一-龯々〆]+$/   // 英数字・@ �
 const segmenter = typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter('ja', { granularity: 'word' }) : null
 
 const KANJI = /^[一-龯々〆]+$/
+// 否定・除外は語を割ると意味が反転する（「新品ではない」→ 新品）。丸ごと Jev に渡せば「中古」を選べる
+const NEGATION = /(ない|なく|以外|じゃな|ではな)/
 
 // ICU は割りすぎるので、隣接（間に助詞を落としていない）なら戻す:
 // カタカナ+カタカナ（ブランド名）、ひらがな+ひらがな（読み）、漢字+ひらがな（姓+名の読み）
@@ -100,8 +102,8 @@ export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[
     .map((part) => stripHint(part, fields))
     .filter((c) => c.text.length > 0)
     .flatMap((c) => {
-      // 欄名だけ・数字はそのまま。それ以外は単語に割り、2 語目以降に glue を付ける
-      if (isLabelWord(c.text, fields) || !JAPANESE_ONLY.test(c.text) || HIRAGANA.test(c.text)) return [c]
+      // 欄名だけ・数字・否定はそのまま。それ以外は単語に割り、2 語目以降に glue を付ける
+      if (isLabelWord(c.text, fields) || !JAPANESE_ONLY.test(c.text) || HIRAGANA.test(c.text) || NEGATION.test(c.text)) return [c]
       return words(c.text).map((w, i) => (i === 0 ? { ...c, text: w } : { ...c, text: w, glue: true }))
     })
 }

@@ -107,3 +107,12 @@ test('数字の桁区切りカンマでは割らない（12,500円）', () => {
 test('助詞だけの chunk は捨てる（STT が「発売 去年 の 7月」と空白で切ったとき）', () => {
   expect(segment('発売 去年 の 7月', true, fields)).toEqual([{ text: '発売' }, { text: '去年' }, { text: '7月' }])
 })
+
+test('否定・除外（〜ではない / じゃない / 以外 / じゃなくて）を含む chunk は割らずに丸ごと渡す', () => {
+  const f2: Field[] = [...fields, { id: 'cond', label: '状態', kind: 'select', options: ['新品', '中古'] }]
+  expect(segment('新品ではない', true, f2)).toEqual([{ text: '新品ではない' }])
+  expect(segment('新品じゃない', true, f2)).toEqual([{ text: '新品じゃない' }])
+  expect(segment('中古じゃなくて新品', true, f2)).toEqual([{ text: '中古じゃなくて新品' }])
+  expect(segment('赤以外', true, f2)).toEqual([{ text: '赤以外' }])
+  expect(segment('状態は新品ではない、赤', true, f2)).toEqual([{ text: '新品ではない', hint: '状態' }, { text: '赤' }])
+})

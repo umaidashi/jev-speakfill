@@ -93,6 +93,15 @@
       "id": "weight",
       "label": "重量",
       "kind": "text"
+    },
+    {
+      "id": "cond",
+      "label": "状態",
+      "kind": "select",
+      "options": [
+        "新品",
+        "中古"
+      ]
     }
   ],
   "cases": [
@@ -190,7 +199,8 @@
       "expect": {
         "color": "黒",
         "material": "金属",
-        "brand": "エルメス"
+        "brand": "エルメス",
+        "cond": "中古"
       }
     },
     {
@@ -268,6 +278,25 @@
       "text": "発売月は2025年7月7日",
       "expect": {
         "release": "2025-07"
+      }
+    },
+    {
+      "text": "新品ではない",
+      "expect": {
+        "cond": "中古"
+      }
+    },
+    {
+      "text": "中古じゃなくて新品",
+      "expect": {
+        "cond": "新品"
+      }
+    },
+    {
+      "text": "状態は新品じゃない、ブラック",
+      "expect": {
+        "cond": "中古",
+        "color": "黒"
       }
     }
   ]
