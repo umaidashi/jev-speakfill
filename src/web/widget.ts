@@ -39,7 +39,7 @@ panel.append(status, interim, transcript, undoBtn, dlBtn, log)
 const traces = new TraceLog(localStorageStore())
 dlBtn.onclick = () => traces.download()
 const fab = document.createElement('button')
-fab.textContent = '🎤'
+fab.textContent = '🎤'; fab.title = `jev-speakfill build ${__BUILD__}`
 fab.setAttribute('style', 'width:56px;height:56px;border-radius:50%;border:none;background:#1a73e8;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.3)')
 root.append(panel, fab)
 document.body.append(root)

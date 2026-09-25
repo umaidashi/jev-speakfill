@@ -84,6 +84,7 @@ function onEvent(ev: EngineEvent) {
   undoBtn.disabled = !engine.canUndo
 }
 
+$('build').textContent = `build ${__BUILD__}（古ければ chrome://extensions で 🔄）`
 const engine = new Engine(host, onEvent)
 let speech: SpeechHandle | null = null
 
