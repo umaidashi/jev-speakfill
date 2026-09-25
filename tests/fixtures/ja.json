@@ -16,6 +16,7 @@
     { "text": "青、皮、シャネル", "expect": { "color": "青", "material": "革", "brand": "シャネル" } },
     { "text": "黒、金属、エルメス", "expect": { "color": "黒", "material": "金属", "brand": "エルメス" } },
     { "text": "山田太郎、やまだたろう", "expect": { "name": "山田太郎", "kana": "やまだたろう" } },
+    { "text": "佐藤あかね、さとうあかね", "expect": { "name": "佐藤あかね", "kana": "さとうあかね" } },
     { "text": "電話は09012345678", "expect": { "tel": "090-1234-5678" } },
     { "text": "東京都在住の女性です", "expect": { "pref": "東京都", "sex": "女性" } },
     { "text": "メールはtaro@example.com", "expect": { "email": "taro@example.com" } },

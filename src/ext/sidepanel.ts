@@ -16,7 +16,17 @@ async function activeTabId(): Promise<number> {
   if (!tab?.id) throw new Error('アクティブタブなし')
   return tab.id
 }
-const toTab = async (msg: unknown) => chrome.tabs.sendMessage(await activeTabId(), msg)
+let tabId: number | null = null   // 🎤 開始時に束縛。途中でタブを切り替えても別タブに書かない
+async function toTab(msg: unknown) {
+  if (tabId === null) tabId = await activeTabId()
+  try {
+    return await chrome.tabs.sendMessage(tabId, msg)
+  } catch {
+    // インストール前から開いていたページには content script が無いので注入して再送
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] })
+    return chrome.tabs.sendMessage(tabId, msg)
+  }
+}
 
 const ask: JevAsk = async (state, questions) => {
   sent.textContent = JSON.stringify({ state, questions }, null, 1)
@@ -25,10 +35,13 @@ const ask: JevAsk = async (state, questions) => {
   return res.answers
 }
 
-function addLog(html: string, cls = '') {
+// ページ由来の文字列（欄ラベル・STT）を扱うので innerHTML は使わない
+function addLog(text: string, cls = '', strong?: string, small?: string) {
   const div = document.createElement('div')
   div.className = `item ${cls}`
-  div.innerHTML = html
+  div.append(text)
+  if (strong) { const b = document.createElement('b'); b.textContent = strong; div.append(b) }
+  if (small) { const sm = document.createElement('small'); sm.textContent = ` ${small}`; div.append(sm) }
   log.prepend(div)
 }
 
@@ -59,7 +72,7 @@ async function onFinal(text: string) {
     filled[p.fieldId] = p.value
     undoStack.push({ ...r, label })
     undoBtn.disabled = false
-    addLog(`${label} ← <b>${p.value}</b> <small>(${p.confidence.toFixed(2)})</small>`)
+    addLog(`${label} ← `, '', p.value, `(${p.confidence.toFixed(2)})`)
   }
 }
 
@@ -75,7 +88,7 @@ undoBtn.onclick = async () => {
 // Web Speech。continuous でも Chrome が勝手に onend するので listening 中は再開する（Review Focus 5）。
 // ただしマイク拒否・デバイスなしは再開すると無限ループになるので止める。
 const SR: { new (): SpeechRecognition } = (window as any).webkitSpeechRecognition ?? (window as any).SpeechRecognition
-const FATAL = new Set(['not-allowed', 'audio-capture', 'service-not-allowed', 'language-not-supported'])
+const FATAL = new Set(['not-allowed', 'audio-capture', 'service-not-allowed', 'language-not-supported', 'network'])  // network は spec どおり停止（再開ループ防止）
 let rec: SpeechRecognition | null = null
 
 function stop(msg: string) {
@@ -109,10 +122,11 @@ function start() {
 
 toggle.onclick = async () => {
   if (listening) return stop('停止')
+  tabId = null
   try {
     fields = await collect()
   } catch {
-    status.textContent = 'このページでは使えません（再読み込みしてください）'; return
+    status.textContent = 'このページでは使えません（chrome:// や Web Store など）'; return
   }
   if (fields.length === 0) { status.textContent = '入力欄が見つかりません'; return }
   listening = true

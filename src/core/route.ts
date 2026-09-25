@@ -20,6 +20,14 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
     } else {
       value = normalize(chunk.text, field.label)
     }
+    const last = out[out.length - 1]
+    // 「山田 太郎」のように STT が 1 つの値を空白で割ったとき、隣接 chunk が同じ text 欄なら連結する
+    if (last && last.fieldId === field.id && !field.options?.length) {
+      last.value = normalize(`${last.chunk} ${chunk.text}`, field.label)
+      last.chunk = `${last.chunk} ${chunk.text}`
+      last.confidence = Math.min(last.confidence, a.confidence)
+      return
+    }
     out.push({ fieldId: field.id, value, chunk: chunk.text, confidence: a.confidence })
   })
   return out

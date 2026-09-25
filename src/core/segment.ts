@@ -2,7 +2,7 @@ import type { Chunk, Field } from './types'
 
 // ponytail: 日本語ヒューリスティック。境界が誤るケースが出たら spec の B 案（欄ごとの Noul）を none 時 fallback に足す
 const SPLIT = /[、。,\s]+/
-const TRAIL = /(です|でございます|になります|だよ|ね|よ)$/
+const TRAIL = /(です|でございます|になります)$/
 
 // 発話語 → label に含まれる文字列。左が発話され、右を含む label の欄を hint にする
 const SYNONYMS: [string, string][] = [
@@ -52,8 +52,12 @@ export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[
   if (!isFinal) return []
   const ps = particleSplitter(fields)
   return mergeDigits(text.split(SPLIT))
-    .flatMap((part) => (ps ? part.split(ps) : [part]))
-    .map((part) => part.replace(TRAIL, '').replace(/[でと]$/, ''))
+    .flatMap((part) => {
+      // 「山田太郎で電話は…」のようにラベル語の直前で割れた場合だけ、前側の末尾「で」を落とす
+      const parts = ps ? part.split(ps) : [part]
+      return parts.map((q, i) => (i < parts.length - 1 ? q.replace(/で$/, '') : q))
+    })
+    .map((part) => part.replace(TRAIL, ''))
     .filter((part) => part.length > 0)
     .map((part) => stripHint(part, fields))
     .filter((c) => c.text.length > 0)

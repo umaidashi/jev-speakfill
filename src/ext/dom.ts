@@ -41,11 +41,14 @@ function labelOf(el: HTMLElement): string {
 }
 
 function isVisible(el: HTMLElement): boolean {
-  if (el.hidden) return false
-  try {
-    const st = el.ownerDocument.defaultView?.getComputedStyle(el)
-    return !st || st.display !== 'none'
-  } catch { return true }
+  if (typeof el.checkVisibility === 'function') return el.checkVisibility()
+  // jsdom 用 fallback: 自身と祖先の display:none / hidden を見る
+  const win = el.ownerDocument.defaultView
+  for (let n: HTMLElement | null = el; n; n = n.parentElement) {
+    if (n.hidden) return false
+    try { if (win?.getComputedStyle(n).display === 'none') return false } catch { /* layout なし */ }
+  }
+  return true
 }
 
 export function collectFields(root: Document): Field[] {
@@ -88,9 +91,10 @@ function setNative(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElemen
   el.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
+// React はインスタンスに checked の tracker を定義するので、prototype の setter で書かないと onChange が発火しない
+const checkedSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked')!.set!
 function setChecked(el: HTMLInputElement, checked: boolean) {
-  el.checked = checked
-  el.dispatchEvent(new Event('click', { bubbles: true }))
+  checkedSetter.call(el, checked)
   el.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
@@ -126,7 +130,7 @@ export function restore(fieldId: string, prev: string): void {
   const target = registry.get(fieldId)
   if (!target) return
   if (Array.isArray(target)) {
-    for (const r of target) r.checked = r.value === prev
+    for (const r of target) if (r.checked !== (r.value === prev)) setChecked(r, r.value === prev)
     return
   }
   if (target instanceof HTMLInputElement && target.type === 'checkbox') return setChecked(target, prev === 'true')

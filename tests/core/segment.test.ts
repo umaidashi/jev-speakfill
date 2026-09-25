@@ -55,3 +55,8 @@ test('空白区切りの数字は 1 つの chunk に結合する（電話番号�
     { text: '大阪' }, { text: '男性' }, { text: '090 9876 5432' },
   ])
 })
+
+test('終助詞と衝突する名前を削らない（あかね・みさと・ちよ）', () => {
+  expect(segment('あかね、みさと、ちよ', true, fields)).toEqual([{ text: 'あかね' }, { text: 'みさと' }, { text: 'ちよ' }])
+  expect(segment('名前はみさと', true, fields)).toEqual([{ text: 'みさと', hint: '氏名' }])
+})

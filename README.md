@@ -10,6 +10,15 @@
 3. 拡張の「オプション」で TypeSafe API キーを保存（BYOK。`chrome.storage.local` のみ）
 4. フォームのあるページで side panel を開き 🎤。値と値の間は読点程度の間を空けて話す
 
+## 権限
+- `host_permissions: <all_urls>` + `scripting`: どのページのフォームにも書けるようにするため。インストール時に「すべてのサイトのデータの読み取りと変更」の警告が出る
+- `sidePanel`, `storage`: UI と API キー保存
+- マイク: side panel からは許可ダイアログが出ないので、初回は自動で開く `grant.html` で一度許可する
+
+## 挙動
+- 音声認識の `network` エラーやマイク拒否では停止する（🎤 を押し直す）。無音による切断は自動再開
+- Jev のエラー（キー未設定・429 など）は該当発話を「未配置」として残し、拡張は動き続ける。自動リトライはしない
+
 ## データの行き先（自己責任で使うこと）
 - 音声: Chrome の Web Speech API → Google
 - 欄のラベル・種別・選択肢と、発話テキスト: TypeSafe API

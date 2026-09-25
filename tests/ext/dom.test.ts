@@ -87,3 +87,30 @@ test('100 件で打ち切る', () => {
   const fields = page(Array.from({ length: 120 }, (_, i) => `<input id="i${i}" placeholder="p${i}">`).join(''))
   expect(fields).toHaveLength(100)
 })
+
+test('祖先が display:none の欄は収集しない', () => {
+  const fields = page(`<div style="display:none"><input id="h" placeholder="hidden"></div><input id="v" placeholder="visible">`)
+  expect(fields.map((f) => f.label)).toEqual(['visible'])
+})
+
+test('checkbox/radio は prototype setter で書き、restore でも change を出す（React tracker 対策）', () => {
+  const [radio, cb] = page(`
+    <fieldset><legend>性別</legend><label><input type="radio" name="sex" value="m">男性</label><label><input type="radio" name="sex" value="f">女性</label></fieldset>
+    <label><input type="checkbox" id="agree">同意する</label>
+  `)
+  const box = document.getElementById('agree') as HTMLInputElement
+  const instanceSets: boolean[] = []
+  Object.defineProperty(box, 'checked', { configurable: true, get: () => false, set: (v: boolean) => { instanceSets.push(v) } })
+  applyPlacement({ fieldId: cb.id, value: '同意する', chunk: '', confidence: 1 })
+  expect(instanceSets).toEqual([])   // インスタンス側 tracker を素通りして prototype に書く
+  const protoGet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked')!.get!
+  expect(protoGet.call(box)).toBe(true)
+
+  const f = document.querySelector('input[value=f]') as HTMLInputElement
+  const events: string[] = []
+  f.addEventListener('change', () => events.push('change'))
+  applyPlacement({ fieldId: radio.id, value: '女性', chunk: '', confidence: 1 })
+  restore(radio.id, '')
+  expect(events).toEqual(['change', 'change'])
+  expect(f.checked).toBe(false)
+})

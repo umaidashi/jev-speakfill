@@ -62,3 +62,8 @@ test('chunk が空なら ask を呼ばない', async () => {
   expect(await route(fields, [], {}, ask)).toEqual([])
   expect(called).toBe(0)
 })
+
+test('同一発話で隣接 chunk が同じ text 欄に向いたら連結する（「山田 太郎」）', async () => {
+  const r = await route(fields, [{ text: '山田' }, { text: '太郎' }], {}, fakeAsk({ c0: answer('name'), c1: answer('name') }))
+  expect(r).toEqual([{ fieldId: 'name', value: '山田 太郎', chunk: '山田 太郎', confidence: 0.9 }])
+})
