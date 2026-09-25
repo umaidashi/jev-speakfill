@@ -124,3 +124,15 @@ test('checkbox/radio は prototype setter で書き、restore でも change を�
   expect(events).toEqual(['change', 'change'])
   expect(f.checked).toBe(false)
 })
+
+test('input の type と制約属性（min/max/step/maxlength/pattern）を Field に載せる', () => {
+  const [d, n, t] = page(`
+    <label for="d">購入日</label><input id="d" type="date" min="2026-01-01">
+    <label for="n">価格</label><input id="n" type="number" min="0" step="100" max="100000">
+    <label for="t">コード</label><input id="t" maxlength="6" pattern="[A-Z]+\\d+">
+  `)
+  expect(d).toMatchObject({ kind: 'text', type: 'date', constraints: { min: '2026-01-01' } })
+  expect(n).toMatchObject({ type: 'number', constraints: { min: '0', max: '100000', step: '100' } })
+  expect(t).toMatchObject({ constraints: { maxLength: 6, pattern: '[A-Z]+\\d+' } })
+  expect(t.type).toBeUndefined()   // 素の text は type を付けない
+})

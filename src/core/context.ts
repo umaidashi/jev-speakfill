@@ -1,4 +1,5 @@
 import { normalize } from './normalize'
+import { coerce } from './format'
 import type { Chunk, Field, Placement } from './types'
 
 // 発話をまたぐ文脈。即時配置はそのままに、「欄名だけ」「番号の続き」を後から解釈する
@@ -57,13 +58,15 @@ export function checkFormat(value: string, label: string): FormatCheck {
   return 'ok'
 }
 
+// 型ごとの正規化 + 検証（core/format.ts）を通してから書く
 export function gate(placements: Placement[], fields: Field[], ctx: Context, now: number) {
   const apply: Placement[] = [], pending: Placement[] = [], rejected: Placement[] = []
-  for (const p of placements) {
-    const label = fields.find((f) => f.id === p.fieldId)?.label ?? ''
-    const fc = checkFormat(p.value, label)
-    if (fc === 'invalid') { rejected.push(p); ctx.last = undefined; continue }
-    if (fc === 'short') pending.push(p); else apply.push(p)
+  for (const p0 of placements) {
+    const field = fields.find((f) => f.id === p0.fieldId)
+    const c = field && !field.options?.length ? coerce(p0.value, field, now) : { value: p0.value, status: 'ok' as const }
+    const p = { ...p0, value: c.value }
+    if (c.status === 'invalid') { rejected.push(p); ctx.last = undefined; continue }
+    if (c.status === 'short') pending.push(p); else apply.push(p)
     ctx.last = { fieldId: p.fieldId, chunk: p.chunk, at: now }
   }
   return { apply, pending, rejected }

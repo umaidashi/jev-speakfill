@@ -88,7 +88,8 @@ function isLabelWord(text: string, fields: Field[]): boolean {
 export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[] {
   if (!isFinal) return []
   const ps = particleSplitter(fields)
-  return mergeDigits(text.split(SPLIT))
+  // 「12,500」の桁区切りは区切りではない
+  return mergeDigits(text.replace(/(\d)[,，](\d{3})(?!\d)/g, '$1$2').split(SPLIT))
     .flatMap((part) => {
       // 「山田太郎で電話は…」のようにラベル語の直前で割れた場合だけ、前側の末尾「で」を落とす
       const parts = ps ? part.split(ps) : [part]

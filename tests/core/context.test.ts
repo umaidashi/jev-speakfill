@@ -93,3 +93,18 @@ test('数字 chunk の先頭ハイフンは落として Jev に渡す', () => {
   const r = applyContext([{ text: '-1800003' }], fields, ctx, 0)
   expect(r.chunks).toEqual([{ text: '1800003' }])
 })
+
+test('gate: type 付きの欄は coerce で正規形に変換して apply する（date/number）', () => {
+  const ctx = fresh()
+  const typed: Field[] = [
+    { id: 'buy', label: '購入日', kind: 'text', type: 'date' },
+    { id: 'price', label: '価格', kind: 'text', type: 'number', constraints: { min: '0' } },
+  ]
+  const g = gate([
+    { fieldId: 'buy', value: '9月25日', chunk: '9月25日', confidence: 0.9 },
+    { fieldId: 'price', value: '3,000円', chunk: '3,000円', confidence: 0.9 },
+    { fieldId: 'price', value: 'マイナス5', chunk: 'マイナス5', confidence: 0.9 },
+  ], typed, ctx, Date.UTC(2026, 8, 25, 3))
+  expect(g.apply.map((p) => p.value)).toEqual(['2026-09-25', '3000'])
+  expect(g.rejected.map((p) => p.value)).toEqual(['-5'])
+})

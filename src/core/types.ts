@@ -5,6 +5,8 @@ export type Field = {
   label: string
   kind: FieldKind
   options?: string[]
+  type?: string                      // HTML input type（date/time/number/...）。省略は text 扱い
+  constraints?: { min?: string; max?: string; step?: string; maxLength?: number; pattern?: string }
 }
 
 export type Chunk = { text: string; hint?: string; glue?: boolean }  // glue: 直前の chunk と同じ発話断片から単語分割で生まれた（連結時は空白なし）

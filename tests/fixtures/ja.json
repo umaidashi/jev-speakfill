@@ -60,6 +60,28 @@
       "id": "brand",
       "label": "ブランド",
       "kind": "text"
+    },
+    {
+      "id": "buy",
+      "label": "購入日",
+      "kind": "text",
+      "type": "date"
+    },
+    {
+      "id": "pickup",
+      "label": "受取時間",
+      "kind": "text",
+      "type": "time"
+    },
+    {
+      "id": "price",
+      "label": "価格",
+      "kind": "text",
+      "type": "number",
+      "constraints": {
+        "min": "0",
+        "step": "100"
+      }
     }
   ],
   "cases": [
@@ -175,6 +197,34 @@
         "sex": "男性",
         "name": "佐藤あかね"
       }
+    },
+    {
+      "text": "9月25日、午後3時半、3000円",
+      "expect": {
+        "buy": "2026-09-25",
+        "pickup": "15:30",
+        "price": "3000"
+      }
+    },
+    {
+      "text": "購入日は明日、価格は12,500円",
+      "expect": {
+        "buy": "2026-09-26",
+        "price": "12500"
+      }
+    },
+    {
+      "text": "赤、革、ルイヴィトン、2026年1月10日",
+      "expect": {
+        "color": "赤",
+        "material": "革",
+        "brand": "ルイヴィトン",
+        "buy": "2026-01-10"
+      }
+    },
+    {
+      "text": "2月30日",
+      "expect": {}
     }
   ]
 }

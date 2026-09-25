@@ -97,3 +97,9 @@ test('漢字の直後のひらがな語は結合する（姓 + 名の読み）',
     { text: '大阪' }, { text: '男性', glue: true }, { text: '佐藤あかね', glue: true },
   ])
 })
+
+test('数字の桁区切りカンマでは割らない（12,500円）', () => {
+  expect(segment('価格は12,500円、赤', true, [...fields, { id: 'price', label: '価格', kind: 'text', type: 'number' }])).toEqual([
+    { text: '12500円', hint: '価格' }, { text: '赤' },
+  ])
+})

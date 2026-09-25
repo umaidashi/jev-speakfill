@@ -8,6 +8,7 @@ import { callJev } from '../src/ext/jevClient.ts'
 import type { Answer, Field, JevAsk } from '../src/core/types.ts'
 
 const key = process.env.TYPESAFE_API_KEY ?? ''
+const NOW = Date.UTC(2026, 8, 25, 3)   // 日付ケースを固定するため 2026-09-25 JST
 const fx = JSON.parse(readFileSync('tests/fixtures/ja.json', 'utf8')) as {
   fields: Field[]; cases: { text: string; expect: Record<string, string> }[]
 }
@@ -23,9 +24,9 @@ for (const c of fx.cases) {
   }
   const ctx: Context = { hint: undefined, last: undefined }
   const chunks0 = segment(c.text, true, fx.fields)
-  const { chunks, direct } = applyContext(chunks0, fx.fields, ctx, 0)
+  const { chunks, direct } = applyContext(chunks0, fx.fields, ctx, NOW)
   const placements = [...direct, ...(chunks.length ? await route(fx.fields, chunks, {}, ask) : [])]
-  const g = gate(placements, fx.fields, ctx, 0)
+  const g = gate(placements, fx.fields, ctx, NOW)
   const got = Object.fromEntries(g.apply.map((p) => [p.fieldId, p.value]))
   const keys = new Set([...Object.keys(c.expect), ...Object.keys(got)])
   let ok = true

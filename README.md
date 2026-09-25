@@ -46,7 +46,7 @@
 | ③-1 欄の選択 | `core/jev.ts` `buildQuestions` → `core/route.ts` | chunk ごとに Choice「どの欄の値か」。criteria = 欄 ID + `none`。state = 欄一覧（label/kind/options）+ chunk + 入力済み値。`hint` があれば instructions に明示。同音異義の注意も書く | **Jev** |
 | ③-2 選択肢 | `core/jev.ts` `optionQuestion` → `route.ts` | ③-1 で選ばれた欄が select/radio/checkbox のときだけ、Choice「どの選択肢か」（+ `none`）。川→革 はここで吸収される | **Jev** |
 | ③-3 採否 | `core/route.ts` | `none` または confidence < 0.35 は捨てる。text 欄は chunk 文字列をそのまま値に。電話/郵便は `normalize` で桁整形。隣接 chunk が同じ text 欄なら連結（`glue` なら空白なし: 山田+太郎 → 山田太郎） | コード |
-| ④ 形式ゲート | `core/context.ts` `gate` / `checkFormat` | 電話 10〜11 桁、郵便 7 桁。短い → 書かずに保留（続き待ち）。長い → 形式不正で捨てる | コード |
+| ④ 形式ゲート | `core/format.ts` `coerce`（`gate` から呼ぶ） | HTML の `type` と `min/max/step/maxlength/pattern` に合わせて発話を正規形に変換し検証。date（9月25日 / 明日 → `2026-09-25`）、time（午後3時半 → `15:30`）、datetime-local、month、number/range（3,000円 → `3000`）、email/url（形式のみ）、color（赤 → `#ff0000`）、tel/郵便（桁数。短い → 保留、長い → 形式不正）、text の pattern/maxlength | コード |
 | ⑤ 書き込み | `ext/dom.ts` | 欄収集（label/aria/placeholder/name/隣接テキスト、password・cc・ふりがな除外、非表示除外、100 件上限）、native setter で書き込み、Undo | コード |
 | 配線 | `core/engine.ts` | 上記を順に呼び、filled / ctx / Undo を持つ。ホスト（拡張 / web / サーバ）は 4 関数を渡すだけ | コード |
 
@@ -99,4 +99,4 @@ core/pipeline.ts segment → context → route → gate。ブラウザでも Nod
 - `src/ext/` — MV3 ホスト（side panel / content script / service worker）
 
 ## 開発
-`npm test` / `npm run typecheck` / `npm run dev`（web サンプル）/ `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し、`docs/eval/latest.md` に段階ごとの結果を書く。現在 34/34）
+`npm test` / `npm run typecheck` / `npm run dev`（web サンプル）/ `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し、`docs/eval/latest.md` に段階ごとの結果を書く。現在 43/43）

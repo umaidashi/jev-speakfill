@@ -11,7 +11,7 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
   chunks.forEach((chunk, i) => {
     const criteria: Record<string, string> = {}
     for (const f of fields) {
-      criteria[f.id] = `${f.label || '(ラベルなし)'} (${f.kind}${f.options ? ': ' + f.options.join('/') : ''})`
+      criteria[f.id] = `${f.label || '(ラベルなし)'} (${f.kind}${f.options ? ': ' + f.options.join('/') : f.type ? ': ' + f.type : ''})`
     }
     criteria[NONE] = '雑談・指示・どの欄の値でもない'
     questions[`c${i}`] = {

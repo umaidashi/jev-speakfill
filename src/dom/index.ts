@@ -54,6 +54,20 @@ function isVisible(el: HTMLElement): boolean {
 // ponytail: STT は必ず漢字化するので、読み欄は MVP 対象外。業務版ではサーバ側で漢字→かな変換する
 const KANA_LABEL = /ふりがな|フリガナ|かな|カナ/
 
+const TYPED = new Set(['date', 'time', 'datetime-local', 'month', 'week', 'number', 'range', 'email', 'url', 'color', 'tel'])
+
+// HTML の type と制約属性を Field に載せる（core/format.ts が発話を正規形に変換・検証するため）
+function typeAndConstraints(el: HTMLElement): Pick<Field, 'type' | 'constraints'> {
+  const out: Pick<Field, 'type' | 'constraints'> = {}
+  const type = el.getAttribute('type')?.toLowerCase()
+  if (type && TYPED.has(type)) out.type = type
+  const c: NonNullable<Field['constraints']> = {}
+  for (const k of ['min', 'max', 'step', 'pattern'] as const) { const v = el.getAttribute(k); if (v !== null) c[k] = v }
+  const ml = el.getAttribute('maxlength'); if (ml !== null && Number(ml) > 0) c.maxLength = Number(ml)
+  if (Object.keys(c).length) out.constraints = c
+  return out
+}
+
 export function collectFields(root: Document): Field[] {
   registry.clear()
   const out: Field[] = []
@@ -82,7 +96,7 @@ export function collectFields(root: Document): Field[] {
       const label = labelOf(el)
       add(el, el, { label, kind: 'checkbox', options: [label] })
     } else {
-      add(el, el, { label: labelOf(el), kind: 'text' })
+      add(el, el, { label: labelOf(el), kind: 'text', ...typeAndConstraints(el) })
     }
   }
   return out
