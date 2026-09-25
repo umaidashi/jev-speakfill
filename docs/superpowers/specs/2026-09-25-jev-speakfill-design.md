@@ -67,7 +67,7 @@ question chunk_i: Choice
 
 - `choice === 'none'` または `confidence < 0.35` → 配置しない（side panel に「未配置」表示）
 - 欄選択・option 選択の両方の instructions に「これは音声認識の文字起こしで、同音異義の誤変換（川/皮→革）がありうる。読みが一致する欄・選択肢を優先せよ」を入れる。読み辞書はコードに持たない（Jev に任せる。精度は eval スクリプトで測る）
-- `kind` が select/radio/checkbox → 2問目 `Choice` で `options` から選ぶ（同じリクエストに投機的に同梱: 全 select 欄について「この chunk が当該欄なら option はどれか」を同時に投げ、選ばれた欄の答えだけ使う）
+- `kind` が select/radio/checkbox → 2 往復目の `Choice` で `options` から選ぶ（選ばれた欄の分だけ。投機的同梱は入力トークンが 欄数×chunk 数 で膨らむため不採用: 実測 1.4 倍、latency 差 ~150ms）
 - text 欄 → chunk をそのまま value。電話/郵便番号/日付は regex で候補を over-find（`\d[\d\-]{8,}` 等）→ 候補が1つなら正規化してその値、複数なら Choice で選択
 - 確認ゲートなし（自己責任・Undo で足りる）。`ponytail:` 業務版で必要なら confidence 帯で「確認」状態を追加
 

@@ -67,3 +67,23 @@ test('同一発話で隣接 chunk が同じ text 欄に向いたら連結する�
   const r = await route(fields, [{ text: '山田' }, { text: '太郎' }], {}, fakeAsk({ c0: answer('name'), c1: answer('name') }))
   expect(r).toEqual([{ fieldId: 'name', value: '山田 太郎', chunk: '山田 太郎', confidence: 0.9 }])
 })
+
+test('2 往復: 1 回目は欄選択だけ、2 回目は選ばれた選択肢欄の option 質問だけ', async () => {
+  const calls: string[][] = []
+  const ask: JevAsk = async (_s, questions) => {
+    calls.push(Object.keys(questions))
+    const out: Record<string, Answer> = {}
+    for (const id of Object.keys(questions)) out[id] = id === 'c0' ? answer('name') : id === 'c1' ? answer('pref') : id === 'c1_pref' ? answer('大阪府') : answer('none')
+    return out
+  }
+  const r = await route(fields, [{ text: '山田' }, { text: '大阪' }], {}, ask)
+  expect(calls).toEqual([['c0', 'c1'], ['c1_pref']])
+  expect(r.map((p) => p.value)).toEqual(['山田', '大阪府'])
+})
+
+test('選択肢欄が選ばれなければ 2 回目は呼ばない', async () => {
+  let n = 0
+  const r = await route(fields, [{ text: '山田' }], {}, async (_s, q) => { n++; const o: Record<string, Answer> = {}; for (const id of Object.keys(q)) o[id] = answer('name'); return o })
+  expect(n).toBe(1)
+  expect(r[0].value).toBe('山田')
+})

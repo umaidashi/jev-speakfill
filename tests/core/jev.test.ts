@@ -1,4 +1,4 @@
-import { buildQuestions, THRESHOLD } from '../../src/core/jev'
+import { buildQuestions, optionQuestion, THRESHOLD } from '../../src/core/jev'
 import type { Field } from '../../src/core/types'
 
 const fields: Field[] = [
@@ -12,15 +12,19 @@ test('chunk ごとに Choice を1問、criteria は欄ID + none', () => {
   expect(questions.c1.instructions).toContain('都道府県')      // hint が instructions に入る
 })
 
-test('select 欄がある chunk には option 選択を投機的に同梱', () => {
+test('1 往復目は欄選択だけ（option 質問は同梱しない）', () => {
   const { questions } = buildQuestions(fields, [{ text: '東京' }], {})
-  expect(Object.keys(questions.c0_pref.criteria)).toEqual(['東京都', '大阪府', 'none'])
+  expect(Object.keys(questions)).toEqual(['c0'])
+})
+
+test('optionQuestion は選択肢 + none を criteria にする', () => {
+  expect(Object.keys(optionQuestion(0, fields[1]).criteria)).toEqual(['東京都', '大阪府', 'none'])
 })
 
 test('欄選択・option 選択とも同音異義の注意が instructions に入る（Review Focus 6）', () => {
   const { questions } = buildQuestions(fields, [{ text: '川' }], {})
   expect(questions.c0.instructions).toContain('同音')
-  expect(questions.c0_pref.instructions).toContain('同音')
+  expect(optionQuestion(0, fields[1]).instructions).toContain('同音')
 })
 
 test('state に欄と chunk と filled が入り、ページ本文は含まない', () => {
