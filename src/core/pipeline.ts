@@ -1,9 +1,10 @@
 import { segment } from './segment'
 import { applyContext, gate, type Context } from './context'
-import { coerce } from './format'
+import { coerce, effectiveType, fmtDate, isDateLike, localYMD, parseDateSkeleton } from './format'
 import { resolveConfig, type SpeakfillConfig } from './config'
 import { route } from './route'
 import type { Answer, Chunk, Field, JevAsk, JevUsage, Placement, Question } from './types'
+import { NONE } from './jev'
 
 // 発話 1 回分を「配置」に変える全段階。ホスト（拡張 / web / サーバ）はこれを呼ぶだけ
 export type RouteInput = {
@@ -65,6 +66,7 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
     ctx.hint = undefined
     ctx.last = { fieldId: field.id, chunk: next.text, at: input.now }
   }
+  await resolveDatesWithJev(g, input, cfg, askTraced)
   const placedChunks = [...g.apply, ...g.pending, ...g.rejected, ...g.labelish].map((p) => p.chunk)
   const unplaced = chunks.filter((c) => !placedChunks.some((t) => t.includes(c.text))).map((c) => c.text)
   const trace: Trace = {
@@ -74,4 +76,45 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
   // hint を返すのは「欄名だけの発話」のとき（chunk が無い、または gate で欄名扱いになった）
   const hint = ctx.hint && ctx.hint !== input.ctx.hint ? ctx.hint : chunks.length === 0 && direct.length === 0 ? ctx.hint : undefined
   return { ...g, unplaced, hint, ctx, trace }
+}
+
+// 日付欄で決定的パーサが読めなかった語（「あくる日」「次の年の8月6日」）は、コードが候補の日付を列挙して Jev に選ばせる。
+// Jev は日付を生成しない: 候補（今日±3日、または骨格 M月D日 の年違い）から 1 つ選ぶか none
+async function resolveDatesWithJev(g: ReturnType<typeof gate>, input: RouteInput, cfg: SpeakfillConfig, ask: JevAsk) {
+  const targets = g.rejected.filter((p) => { const f = input.fields.find((f) => f.id === p.fieldId); return f && isDateLike(effectiveType(f, cfg)) && effectiveType(f, cfg) !== 'datetime-local' })
+  if (targets.length === 0) return
+  const today = localYMD(input.now, cfg.timeZone)
+  const questions: Record<string, Question> = {}
+  const candidates = new Map<string, Record<string, string>>()
+  for (const p of targets) {
+    const field = input.fields.find((f) => f.id === p.fieldId)!
+    const criteria: Record<string, string> = {}
+    const sk = parseDateSkeleton((/(\d{4}[年/])?\d{1,2}[月/]\d{1,2}日?$/.exec(p.chunk.replace(/\s+/g, '')) ?? [''])[0])
+    if (sk) {
+      for (const off of [-2, -1, 0, 1, 2]) criteria[fmtDate({ y: (sk.y ?? today.y) + off, m: sk.m, d: sk.d })] = `${(sk.y ?? today.y) + off}年${sk.m}月${sk.d}日（今年から ${off >= 0 ? '+' : ''}${off} 年）`
+    } else {
+      const WD = ['日', '月', '火', '水', '木', '金', '土']
+      for (let off = -14; off <= 14; off++) {
+        const d = localYMD(input.now, cfg.timeZone, off)
+        const wd = WD[new Date(Date.UTC(d.y, d.m - 1, d.d)).getUTCDay()]
+        criteria[fmtDate(d)] = `${fmtDate(d)}（${wd}曜日、今日から ${off >= 0 ? '+' : ''}${off} 日）`
+      }
+    }
+    criteria[NONE] = '日付を指していない・候補に無い'
+    candidates.set(p.fieldId, criteria)
+    questions[`date_${p.fieldId}`] = {
+      type: 'choice',
+      instructions: `発話「${p.chunk}」は欄「${field.label}」の日付としてどれを指すか。今日は ${fmtDate(today)}。${cfg.sttNote}`,
+      criteria,
+    }
+  }
+  const { answers } = await ask({ today: fmtDate(today), chunks: targets.map((p) => p.chunk) }, questions)
+  for (const p of targets) {
+    const a = answers[`date_${p.fieldId}`]
+    if (!a || a.choice === NONE || a.confidence < cfg.threshold || !candidates.get(p.fieldId)?.[a.choice]) continue
+    const field = input.fields.find((f) => f.id === p.fieldId)!
+    const value = effectiveType(field, cfg) === 'month' ? a.choice.slice(0, 7) : a.choice
+    g.rejected.splice(g.rejected.indexOf(p), 1)
+    g.apply.push({ ...p, value, confidence: a.confidence })
+  }
 }

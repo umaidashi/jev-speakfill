@@ -8,6 +8,12 @@ export type SpeakfillConfig = {
   excludeLabels: string[]                           // 収集しない欄（ラベル部分一致。例: ふりがな）
   continuationLabels: string[]                      // 数字だけの発話を直前の値に連結する欄（電話・郵便）
   colors: Record<string, string>                    // color 型の色名 → #rrggbb
+  timeZone: string                                  // 相対日付（今日/明日）を解決するタイムゾーン
+  relativeDays: Record<string, number>              // 「今日」「きょう」→ 0、「明日」→ +1 …（読み違い・かな表記も登録する）
+  relativeYears: Record<string, number>             // 「来年」「らいねん」→ +1 …
+  noonWords: string[]                               // 「正午」
+  telLabels: string[]                               // type が無くても tel 扱いにする欄ラベル語
+  zipLabels: string[]                               // 同じく郵便番号（7 桁）
   particles: string[]                               // 単語分割で落とす助詞・語尾
   trailers: string[]                                // chunk 末尾から落とす丁寧語
   negations: string[]                               // 含んでいたら chunk を割らない（否定・除外）
@@ -26,6 +32,12 @@ export const DEFAULT_CONFIG: SpeakfillConfig = {
   units: [],
   excludeLabels: [],
   continuationLabels: ['電話', 'TEL', 'tel', '携帯', 'FAX', '郵便', '〒', '番号'],
+  timeZone: 'Asia/Tokyo',
+  relativeDays: { 今日: 0, きょう: 0, 本日: 0, 明日: 1, あした: 1, あす: 1, 翌日: 1, 昨日: -1, きのう: -1, 明後日: 2, あさって: 2, 一昨日: -2, おととい: -2 },
+  relativeYears: { 今年: 0, ことし: 0, 本年: 0, 来年: 1, らいねん: 1, 去年: -1, きょねん: -1, 昨年: -1, 再来年: 2, さらいねん: 2, 一昨年: -2, おととし: -2 },
+  noonWords: ['正午', 'しょうご'],
+  telLabels: ['電話', 'TEL', 'tel', '携帯', 'FAX'],
+  zipLabels: ['郵便', '〒'],
   colors: { 赤: '#ff0000', 青: '#0000ff', 黒: '#000000', 白: '#ffffff', 緑: '#008000', 黄: '#ffff00', 黄色: '#ffff00', 灰: '#808080', 灰色: '#808080', グレー: '#808080', 茶: '#a52a2a', 茶色: '#a52a2a', 紫: '#800080', ピンク: '#ffc0cb', オレンジ: '#ffa500', 紺: '#000080' },
   particles: ['の', 'は', 'が', 'を', 'に', 'で', 'と', 'も', 'へ', 'や', 'から', 'まで', 'です', 'ます', 'だ', 'ね', 'よ', 'ください'],
   trailers: ['です', 'でございます', 'になります'],

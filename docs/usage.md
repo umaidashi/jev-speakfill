@@ -51,7 +51,10 @@ npm run dev            # build → http://localhost:8787
 | `excludeLabels` | `["ふりがな","カナ"]` | 収集しない欄 |
 | `continuationLabels` | `["電話","郵便"]` | 数字だけの続きを連結する欄 |
 | `instructions` | `"中古ブランドバッグの買取フォーム。「ランク」は状態ランク"` | Jev の instructions 末尾に付く自由記述 |
-| `sttNote` / `typeHints` / `threshold` / `continueMs` / `maxFields` / `particles` / `trailers` / `negations` / `colors` | | 既定値を上書き |
+| `telLabels` / `zipLabels` | `["電話","携帯"]` / `["郵便","〒"]` | `type` が無い欄を tel / zip とみなすラベル語 |
+| `timeZone` | `"Asia/Tokyo"` | 「今日」「明日」を解決するタイムゾーン |
+| `relativeDays` / `relativeYears` | `{"きょう":0,"あした":1}` / `{"らいねん":1}` | 相対日付の語彙（かな表記・読み違いを足す） |
+| `sttNote` / `typeHints` / `threshold` / `continueMs` / `maxFields` / `particles` / `trailers` / `negations` / `colors` / `noonWords` | | 既定値を上書き |
 
 注入口:
 - **サーバ**: `speakfill.config.json`。リクエストの `config` が上書き

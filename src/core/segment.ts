@@ -1,5 +1,6 @@
 import type { Chunk, Field } from './types'
 import { DEFAULT_CONFIG, anyOf, type SpeakfillConfig } from './config'
+import { effectiveType } from './format'
 
 // ponytail: 日本語ヒューリスティック。境界が誤るケースが出たら spec の B 案（欄ごとの Noul）を none 時 fallback に足す
 const SPLIT = /[、。,\s]+/
@@ -154,6 +155,9 @@ export function segment(text: string, isFinal: boolean, fields: Field[], cfg: Sp
     .filter((c) => c.text.length > 0)
     .flatMap((c) => {
       // 欄名だけ・数字・否定はそのまま。それ以外は単語に割り、2 語目以降に glue を付ける
+      // hint 先が日付・数値欄なら値は 1 つの表現（「先週の金曜日」）なので割らない
+      const hinted = c.hint && fields.find((f) => f.label === c.hint)
+      if (hinted && effectiveType(hinted, cfg)) return [c]
       if (isLabelWord(c.text, fields, cfg) || !JAPANESE_ONLY.test(c.text) || HIRAGANA.test(c.text) || (negation && negation.test(c.text))) return [c]
       const ws = words(c.text, dict, particles)
       if (ws.length === 1) return [{ ...c, text: ws[0] }]

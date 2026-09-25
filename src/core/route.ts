@@ -1,6 +1,5 @@
 import { buildQuestions, NONE, optionQuestion } from './jev'
 import { DEFAULT_CONFIG, type SpeakfillConfig } from './config'
-import { normalize } from './normalize'
 import { effectiveType } from './format'
 import type { Chunk, Field, JevAsk, Placement, Question } from './types'
 
@@ -38,7 +37,7 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
       out.push(p); optConf.set(p, opt.confidence)
       return
     } else {
-      value = normalize(chunk.text, field.label)
+      value = chunk.text   // 整形・検証は gate の coerce
     }
     const last = out[out.length - 1]
     // 「山田 太郎」のように STT が 1 つの値を空白で割ったとき、隣接 chunk が同じ text 欄なら連結する。
@@ -49,7 +48,7 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
       merged.set(last, n)
       // 断片の全単語が同じ欄に向いたら、助詞込みの元の文をそのまま使う（「底面に傷あり」）
       const whole = chunk.src && chunk.srcN === n ? chunk.src : joined
-      last.value = normalize(whole, field.label)
+      last.value = whole
       last.chunk = whole
       last.confidence = Math.min(last.confidence, a.confidence)
       return

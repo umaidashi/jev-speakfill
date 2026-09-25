@@ -1,14 +1,11 @@
 // 実 API で fixture を流し、段階ごとの中間結果と一致率を出す。CI では走らせない。
 // 実行: npm run eval（.env の TYPESAFE_API_KEY を使う）。結果は docs/eval/latest.md にも書く
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { segment } from '../src/core/segment.ts'
-import { route } from '../src/core/route.ts'
-import { applyContext, gate, type Context } from '../src/core/context.ts'
+import { pipeline } from '../src/core/pipeline.ts'
+import type { Context } from '../src/core/context.ts'
 import { callJev } from '../src/ext/jevClient.ts'
 import type { Answer, Field, JevAsk } from '../src/core/types.ts'
-import { resolveConfig } from '../src/core/config.ts'
 import { JA_COMMERCE } from '../src/core/presets.ts'
-const CFG = resolveConfig(JA_COMMERCE)
 
 const key = process.env.TYPESAFE_API_KEY ?? ''
 const NOW = Date.UTC(2026, 8, 25, 3)   // 日付ケースを固定するため 2026-09-25 JST
@@ -27,10 +24,8 @@ for (const c of fx.cases) {
     return r
   }
   const ctx: Context = { hint: undefined, last: undefined }
-  const chunks0 = segment(c.text, true, fx.fields, CFG)
-  const { chunks, direct } = applyContext(chunks0, fx.fields, ctx, NOW, CFG)
-  const placements = [...direct, ...(chunks.length ? await route(fx.fields, chunks, {}, ask, [], CFG) : [])]
-  const g = gate(placements, fx.fields, ctx, NOW, CFG)
+  const r = await pipeline({ fields: fx.fields, text: c.text, filled: {}, ctx, now: NOW, config: JA_COMMERCE }, ask)
+  const chunks0 = r.trace.segment, { chunks, direct } = r.trace.context, g = r.trace.gate
   const got = Object.fromEntries(g.apply.map((p) => [p.fieldId, p.value]))
   const keys = new Set([...Object.keys(c.expect), ...Object.keys(got)])
   let ok = true

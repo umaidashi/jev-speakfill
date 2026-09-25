@@ -82,3 +82,32 @@ test('RouteInput.config で語彙を注入できる（同義語「名前」→ �
   const r = await pipeline({ fields, text: '名前は田中', filled: {}, ctx: fresh(), now: 0, config: { synonyms: [{ spoken: '名前', label: '氏名' }] } }, ask2)
   expect(r.trace.segment).toEqual([{ text: '田中', hint: '氏名' }])
 })
+
+test('日付欄でパーサが読めない語（あくる日）は、コードが候補を列挙して Jev に選ばせる（生成はさせない）', async () => {
+  const typed: Field[] = [{ id: 'buy', label: '仕入日', kind: 'text', type: 'date' }]
+  const calls: Record<string, unknown>[] = []
+  const ask2: JevAsk = async (_s, q) => {
+    calls.push(q)
+    const out: Record<string, Answer> = {}
+    for (const id of Object.keys(q)) out[id] = id === 'c0' ? answer('buy') : answer('2026-09-26', 0.9)   // 候補「明日」を選ぶ
+    return { answers: out }
+  }
+  const NOW = Date.UTC(2026, 8, 25, 3)
+  const r = await pipeline({ fields: typed, text: 'あくる日', filled: {}, ctx: fresh(), now: NOW }, ask2)
+  expect(r.apply).toEqual([{ fieldId: 'buy', value: '2026-09-26', chunk: 'あくる日', confidence: 0.9 }])
+  expect(r.rejected).toEqual([])
+  const dateQ = calls[1].date_buy as { criteria: Record<string, string> }
+  expect(Object.keys(dateQ.criteria)).toContain('2026-09-26')   // 候補はコードが作った日付
+  expect(Object.keys(dateQ.criteria)).toContain('none')
+})
+
+test('「らいねんの8月6日」のように骨格が読めれば、年の候補（今年/来年/去年…）だけを Jev に選ばせる', async () => {
+  const typed: Field[] = [{ id: 'buy', label: '仕入日', kind: 'text', type: 'date' }]
+  const ask2: JevAsk = async (_s, q) => {
+    const out: Record<string, Answer> = {}
+    for (const id of Object.keys(q)) out[id] = id === 'c0' ? answer('buy') : answer('2027-08-06', 0.8)
+    return { answers: out }
+  }
+  const r = await pipeline({ fields: typed, text: '次の年の8月6日', filled: {}, ctx: fresh(), now: Date.UTC(2026, 8, 25, 3) }, ask2)
+  expect(r.apply.map((p) => p.value)).toEqual(['2027-08-06'])
+})

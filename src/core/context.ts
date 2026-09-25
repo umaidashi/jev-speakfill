@@ -1,5 +1,4 @@
-import { normalize } from './normalize'
-import { coerce, effectiveType } from './format'
+import { coerce, effectiveType, isDateLike } from './format'
 import { DEFAULT_CONFIG, matchesAny, type SpeakfillConfig } from './config'
 import type { Chunk, Field, Placement } from './types'
 
@@ -36,7 +35,7 @@ export function applyContext(chunks: Chunk[], fields: Field[], ctx: Context, now
     const lastField = last && fields.find((f) => f.id === last.fieldId)
     if (NUMERIC.test(c.text) && last && lastField && matchesAny(cfg.continuationLabels, lastField.label) && now - last.at <= cfg.continueMs) {
       const chunk = `${last.chunk} ${c.text}`
-      direct.push({ fieldId: lastField.id, value: normalize(chunk, lastField.label), chunk, confidence: 1 })
+      direct.push({ fieldId: lastField.id, value: chunk, chunk, confidence: 1 })   // 整形は gate
       ctx.last = { fieldId: lastField.id, chunk, at: now }
       continue
     }
@@ -46,18 +45,6 @@ export function applyContext(chunks: Chunk[], fields: Field[], ctx: Context, now
     ctx.hint = undefined
   }
   return { chunks: out, direct }
-}
-
-export type FormatCheck = 'ok' | 'short' | 'invalid' | 'na'
-
-// 桁数だけで判定する。書く前に短い（続き待ち）/長い（不正）を分ける
-export function checkFormat(value: string, label: string): FormatCheck {
-  const n = value.replace(/[^\d０-９]/g, '').length
-  const range = /郵便|〒/.test(label) ? [7, 7] : /電話|TEL|tel|携帯|FAX/.test(label) ? [10, 11] : null
-  if (!range) return 'na'
-  if (n < range[0]) return 'short'
-  if (n > range[1]) return 'invalid'
-  return 'ok'
 }
 
 // 型ごとの正規化 + 検証（core/format.ts）を通してから書く
@@ -70,7 +57,7 @@ export function gate(placements: Placement[], fields: Field[], ctx: Context, now
     if (c.status === 'invalid') {
       // 数値・日付欄に数字を含まない値 = 欄名を読んだだけ（「たかさ」）。形式不正ではなく次の値のヒントにする
       const t = field && effectiveType(field, cfg)
-      if (field && t && t !== 'email' && t !== 'url' && t !== 'color' && !/[\d０-９]/.test(p.value) && !/今日|明日|昨日|正午/.test(p.value)) { ctx.hint = field.label; ctx.last = undefined; labelish.push(p); continue }
+      if (field && t && !isDateLike(t) && t !== 'time' && t !== 'email' && t !== 'url' && t !== 'color' && !/[\d０-９]/.test(p.value)) { ctx.hint = field.label; ctx.last = undefined; labelish.push(p); continue }
       rejected.push(p); ctx.last = undefined; continue
     }
     if (c.status === 'short') pending.push(p); else apply.push(p)

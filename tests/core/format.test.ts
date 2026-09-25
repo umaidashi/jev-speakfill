@@ -19,6 +19,25 @@ test('date: 年月日 / 月日（今年）/ スラッシュ / 今日・明日・
   ok('明日', f('date'), '2026-09-26')
   ok('昨日', f('date'), '2026-09-24')
 })
+test('date: かな表記・別表記も語彙表で読む（きょう/あした/本日/らいねん）', () => {
+  ok('きょう', f('date'), '2026-09-25')
+  ok('本日', f('date'), '2026-09-25')
+  ok('あした', f('date'), '2026-09-26')
+  ok('あさって', f('date'), '2026-09-27')
+  ok('おととい', f('date'), '2026-09-23')
+  ok('らいねんの8月6日', f('date'), '2027-08-06')
+  ok('しょうご', f('time'), '12:00')
+})
+test('date: timeZone は設定から（UTC なら日付が変わる）', () => {
+  // NOW = 2026-09-25 03:00 UTC = 12:00 JST。UTC-10 (Pacific/Honolulu) では 2026-09-24
+  expect(coerce('今日', f('date'), NOW, resolveConfig({ timeZone: 'Pacific/Honolulu' }))).toEqual({ value: '2026-09-24', status: 'ok' })
+})
+test('tel / zip は type 駆動。ラベルからの推定は設定の telLabels / zipLabels', () => {
+  ok('090 1234 5678', f('tel'), '090-1234-5678')
+  ok('1000001', f('zip'), '100-0001')
+  ok('1000001', f('', { type: undefined, label: '郵便番号' }), '100-0001')     // DEFAULT の zipLabels
+  ok('0312345678', f('', { type: undefined, label: '電話番号' }), '03-1234-5678')
+})
 test('date: 来年/今年/去年 + の', () => {
   ok('来年の8月6日', f('date'), '2027-08-06')
   ok('今年の4月4日', f('date'), '2026-04-04')
@@ -83,11 +102,10 @@ test('color: 色名 → #rrggbb', () => {
   ok('#00ff00', f('color'), '#00ff00')
   bad('革', f('color'))
 })
-test('tel / 郵便番号: 従来の桁数ルール（short を返す）', () => {
-  ok('090 1234 5678', f('tel'), '090-1234-5678')
+test('tel / 郵便番号: 桁数ルール（short を返す）', () => {
   expect(coerce('080', f('tel'), NOW).status).toBe('short')
   bad('0801234567890', f('tel'))
-  ok('1000001', f('text', { label: '郵便番号' }), '100-0001')
+  expect(coerce('100', f('zip'), NOW).status).toBe('short')
 })
 test('text: pattern / maxLength', () => {
   ok('ABC123', f('text', { constraints: { pattern: '[A-Z]+\\d+' } }), 'ABC123')

@@ -168,6 +168,10 @@ describe('ブランドバッグ想定', () => {
       { text: '50', hint: '幅 (cm)' }, { text: '60', hint: '高さ (cm)' }, { text: '20', hint: 'マチ (cm)' },
     ])
   })
+  test('hint 先が日付・数値欄なら単語に割らない（先週の金曜日 は 1 chunk）', () => {
+    const f2: Field[] = [...bag, { id: 'buy', label: '仕入日', kind: 'text', type: 'date' }]
+    expect(segment('仕入日は先週の金曜日', true, f2)).toEqual([{ text: '先週の金曜日', hint: '仕入日' }])
+  })
   test('ラベル語の直後に数字が続けば助詞なしでも hint にする（幅32センチ / 仕入れ値12万円）', () => {
     expect(segment('幅32センチ、高さ29、仕入れ値12万円、販売価格15万8000円', true, bag)).toEqual([
       { text: '32センチ', hint: '幅 (cm)' }, { text: '高さ29' }, { text: '12万円', hint: '仕入れ値' }, { text: '15万8000円', hint: '販売価格' },

@@ -39,7 +39,7 @@ test('直前に数字欄へ置いた直後の数字 chunk は、その欄の値�
   ctx.last = { fieldId: 'tel', chunk: '080', at: 0 }
   const r = applyContext([{ text: '-00010023' }], fields, ctx, 2000)
   expect(r.chunks).toEqual([])
-  expect(r.direct).toEqual([{ fieldId: 'tel', value: '080-0001-0023', chunk: '080 -00010023', confidence: 1 }])
+  expect(r.direct).toEqual([{ fieldId: 'tel', value: '080 -00010023', chunk: '080 -00010023', confidence: 1 }])   // 整形は gate
   expect(ctx.last).toEqual({ fieldId: 'tel', chunk: '080 -00010023', at: 2000 })
 })
 
@@ -65,17 +65,17 @@ test('数字以外の chunk はそのまま通す', () => {
   expect(r.chunks).toEqual([{ text: '青' }])
 })
 
-import { checkFormat, gate } from '../../src/core/context'
+import { gate } from '../../src/core/context'
+import { coerce } from '../../src/core/format'
 
-test('checkFormat: 電話は 10〜11 桁、郵便は 7 桁。短い/長い/対象外を区別する', () => {
-  expect(checkFormat('080-0001-0023', '電話番号')).toBe('ok')
-  expect(checkFormat('03-1234-5678', '電話番号')).toBe('ok')
-  expect(checkFormat('080', '電話番号')).toBe('short')
-  expect(checkFormat('08-0111-1111112222', '電話番号')).toBe('invalid')
-  expect(checkFormat('100-0001', '郵便番号')).toBe('ok')
-  expect(checkFormat('100', '郵便番号')).toBe('short')
-  expect(checkFormat('10000012', '郵便番号')).toBe('invalid')
-  expect(checkFormat('田中', '氏名')).toBe('na')
+test('gate 経由の形式判定: 電話は 10〜11 桁、郵便は 7 桁。短い/長い/対象外', () => {
+  const tel = { id: 'tel', label: '電話番号', kind: 'text' as const }, zip = { id: 'zip', label: '郵便番号', kind: 'text' as const }, name = { id: 'name', label: '氏名', kind: 'text' as const }
+  expect(coerce('080-0001-0023', tel, 0).status).toBe('ok')
+  expect(coerce('080', tel, 0).status).toBe('short')
+  expect(coerce('08-0111-1111112222', tel, 0).status).toBe('invalid')
+  expect(coerce('100-0001', zip, 0).status).toBe('ok')
+  expect(coerce('100', zip, 0).status).toBe('short')
+  expect(coerce('田中', name, 0).status).toBe('ok')
 })
 
 test('gate: ok は apply、short は pending（書かずに続きを待つ）、invalid は rejected', () => {
@@ -94,7 +94,7 @@ test('pending の数字欄は ctx.last に残り、続きが来たら連結し�
   expect(ctx.last).toEqual({ fieldId: 'tel', chunk: '080', at: 0 })
   const r = applyContext([{ text: '-0001 0023' }], fields, ctx, 1500)
   const g = gate(r.direct, fields, ctx, 1500)
-  expect(g.apply).toEqual([{ fieldId: 'tel', value: '080-0001-0023', chunk: '080 -0001 0023', confidence: 1 }])
+  expect(g.apply).toEqual([{ fieldId: 'tel', value: '080-0001-0023', chunk: '080 -0001 0023', confidence: 1 }])   // gate が整形
 })
 
 test('数字 chunk の先頭ハイフンは落として Jev に渡す', () => {

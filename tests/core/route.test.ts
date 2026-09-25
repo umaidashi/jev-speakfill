@@ -25,9 +25,9 @@ test('text 欄は chunk を verbatim で配置', async () => {
   expect(r).toEqual([{ fieldId: 'name', value: '山田太郎', chunk: '山田太郎', confidence: 0.9 }])
 })
 
-test('電話欄は正規化', async () => {
+test('text 欄の値は route では触らない（正規化は gate の coerce がやる）', async () => {
   const r = await route(fields, [{ text: '０９０１２３４５６７８' }], {}, fakeAsk({ c0: answer('tel') }))
-  expect(r[0].value).toBe('090-1234-5678')
+  expect(r[0].value).toBe('０９０１２３４５６７８')
 })
 
 test('select 欄は option 質問の答えを値にする', async () => {
