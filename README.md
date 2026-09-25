@@ -48,7 +48,7 @@
 | ③-3 採否 | `core/route.ts` | `none` または confidence < 0.35 は捨てる。text 欄は chunk 文字列をそのまま値に。電話/郵便は `normalize` で桁整形。隣接 chunk が同じ text 欄なら連結（`glue` なら空白なし: 山田+太郎 → 山田太郎） | コード |
 | ④ 形式ゲート | `core/context.ts` `gate` / `checkFormat` | 電話 10〜11 桁、郵便 7 桁。短い → 書かずに保留（続き待ち）。長い → 形式不正で捨てる | コード |
 | ⑤ 書き込み | `ext/dom.ts` | 欄収集（label/aria/placeholder/name/隣接テキスト、password・cc・ふりがな除外、非表示除外、100 件上限）、native setter で書き込み、Undo | コード |
-| 配線 | `ext/sidepanel.ts` / `ext/background.ts` | 上記を順に呼ぶ。API キー保持と HTTP は service worker | コード |
+| 配線 | `core/engine.ts` | 上記を順に呼び、filled / ctx / Undo を持つ。ホスト（拡張 / web / サーバ）は 4 関数を渡すだけ | コード |
 
 ### Jev が決めているのは 2 つだけ
 1. この chunk はどの欄か（または該当なし）
@@ -66,9 +66,37 @@ Jev に渡すのは欄の `id/label/kind/options`、chunk と `hint`、`filled`�
 ### 具体的な入力と結果
 `npm run eval` が `tests/fixtures/ja.json` の発話を実 API に流し、①〜④ の中間結果を [docs/eval/latest.md](docs/eval/latest.md) に書く（どの chunk が、どの欄に、どの confidence で、どの選択肢になったか）。ケースを足すときは fixture に `text` と `expect` を追加する。拡張の side panel でも「Jev に送った内容」で直近リクエストの state/questions を見られる。
 
+## web app への埋め込み（サンプル）
+
+```
+npm run dev   # build → http://localhost:8787（.env の TYPESAFE_API_KEY をサーバが使う）
+```
+右下の 🎤 フロートボタンで起動。ページの DOM から欄を拾い、発話をサーバの `POST /route` に送り、返ってきた配置を書く。
+**Jev キーはサーバにしか無い**（拡張版の BYOK と違い、利用者にキーを持たせない）。
+
+任意のページに後付けするには `<script src="widget.js" data-endpoint="https://your-api/route"></script>`。
+
+### アーキテクチャ
+```
+core/engine.ts   状態機械（filled / ctx / Undo）。ホストは 4 関数を DI する
+                   host = { fields(), apply(p), restore(id, prev), route(input) }
+core/pipeline.ts segment → context → route → gate。ブラウザでも Node でも同じ
+```
+| ホスト | fields / apply / restore | route |
+|---|---|---|
+| Chrome 拡張 (`src/ext/`) | content script（`src/dom/`）にメッセージ | ローカル `pipeline` + Jev（service worker、BYOK） |
+| web widget (`src/web/widget.ts`) | 同じ `src/dom/` を直接 | `fetch('/route')` |
+| サーバ (`src/server/`) | — | `pipeline` + Jev（キーは `.env`） |
+| React / iOS（今後） | アプリのフォーム state に直接（DOM を触らない） | `fetch('/route')` |
+
+`route` の入出力は JSON（`RouteInput` / `RouteResult`）。`ctx`（欄名ヒントと直前の配置）をクライアントが持ち回るのでサーバはステートレス。
+
 ## 構成
-- `src/core/` — DOM も mic も知らない。`segment`（chunk 化）、`context`（発話をまたぐ文脈・桁数ゲート）、`route`（Jev で欄選択）。React / iOS へそのまま移植する部分
+- `src/core/` — DOM も mic も知らない。`segment`（chunk 化）、`context`（発話をまたぐ文脈・桁数ゲート）、`route`（Jev で欄選択）、`pipeline`（全段階）、`engine`（状態機械）。React / iOS へそのまま移植する部分
+- `src/dom/` — 任意ページの欄収集・書き込み・Undo（拡張と web widget が共用）
+- `src/web/` — Web Speech の包み、フロートボタン widget、サンプルページ
+- `src/server/` — `POST /route` + 静的配信のサンプル backend
 - `src/ext/` — MV3 ホスト（side panel / content script / service worker）
 
 ## 開発
-`npm test` / `npm run typecheck` / `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し、`docs/eval/latest.md` に段階ごとの結果を書く。現在 34/34）
+`npm test` / `npm run typecheck` / `npm run dev`（web サンプル）/ `npm run eval`（`.env` の `TYPESAFE_API_KEY` で実 API に fixture を流し、`docs/eval/latest.md` に段階ごとの結果を書く。現在 34/34）

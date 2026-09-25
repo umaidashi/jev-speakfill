@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>jev-speakfill web サンプル</title>
+<form style="font:14px system-ui;max-width:480px;margin:24px auto;display:grid;gap:8px">
+  <h3>商品情報（MVP 想定）</h3>
+  <label for="color">色</label><select id="color"><option>赤</option><option>青</option><option>黒</option><option>白</option></select>
+  <label for="material">素材</label><select id="material"><option>革</option><option>布</option><option>金属</option></select>
+  <label for="brand">ブランド</label><input id="brand">
+  <label for="cond">状態</label><select id="cond"><option>新品</option><option>中古</option></select>
+  <hr>
+  <label for="name">氏名</label><input id="name">
+  <label for="kana">ふりがな</label><input id="kana">
+  <label for="tel">電話番号</label><input id="tel" type="tel">
+  <label for="email">メールアドレス</label><input id="email" type="email">
+  <label for="zip">郵便番号</label><input id="zip">
+  <label for="pref">都道府県</label>
+  <select id="pref"><option>東京都</option><option>大阪府</option><option>北海道</option><option>福岡県</option></select>
+  <label for="addr">住所</label><input id="addr">
+  <fieldset><legend>性別</legend>
+    <label><input type="radio" name="sex" value="m">男性</label>
+    <label><input type="radio" name="sex" value="f">女性</label>
+  </fieldset>
+  <label><input type="checkbox" id="agree">利用規約に同意する</label>
+  <label for="pw">パスワード（除外されるべき）</label><input id="pw" type="password">
+  <label for="note">備考</label><textarea id="note"></textarea>
+</form>
+<script src="widget.js"></script>
