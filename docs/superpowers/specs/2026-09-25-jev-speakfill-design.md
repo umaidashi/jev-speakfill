@@ -7,6 +7,9 @@
 
 成功条件: 任意の日本語フォームで、自由発話が segment 確定ごとに正しい欄へ書かれ、誤配置を1操作で戻せる。
 
+MVP の想定入力（2026-09-25 追記）: 商品情報入力。「赤、革、ルイヴィトン」のように**値だけ**を読点区切りで話す。「色は赤」のような欄名は発話しない（言っても動く）。
+音声認識は同音異義を誤変換する（「革」→「川」「皮」）。欄が選択肢を持つ（select/radio/checkbox）なら、文字起こしが「川」でも選択肢「革」が選ばれること。これは MVP 要件。
+
 前提: Jev (TypeSafe System One) は**選ぶだけで生成しない**。値は STT の文字列を verbatim に書く。BYOK。個人情報は自己責任だが最小限の除外は守る。
 
 ## 全体構成
@@ -48,6 +51,7 @@ route(fields: Field[], chunks: Chunk[], ask: JevAsk): Promise<Placement[]>
 - final テキストを以下で chunk に割る: 「、」「。」「,」「 」（空白）、および助詞境界 `〜は` `〜が` `〜で`（直後に値が続く形）
 - chunk 先頭が既知の欄ラベル語（`fields[].label` の前方一致、または「電話」「メール」など同義語の小さな表）+「は/が/で」なら、そのラベル語を剥がしてヒントとして保持: `{ text, hint?: string }`
 - 1文字以下の chunk は捨てる
+- 既知の弱点: 「赤革ルイヴィトン」と区切りなしで話すと 1 chunk になる。MVP は読点（短い間）を入れて話す前提
 - `ponytail:` 助詞ヒューリスティック。境界が誤る日本語が出たら B 案（欄ごとの Noul）を none 時 fallback として追加
 
 ### route（Jev 呼び出し）
@@ -62,6 +66,7 @@ question chunk_i: Choice
 ```
 
 - `choice === 'none'` または `confidence < 0.35` → 配置しない（side panel に「未配置」表示）
+- 欄選択・option 選択の両方の instructions に「これは音声認識の文字起こしで、同音異義の誤変換（川/皮→革）がありうる。読みが一致する欄・選択肢を優先せよ」を入れる。読み辞書はコードに持たない（Jev に任せる。精度は eval スクリプトで測る）
 - `kind` が select/radio/checkbox → 2問目 `Choice` で `options` から選ぶ（同じリクエストに投機的に同梱: 全 select 欄について「この chunk が当該欄なら option はどれか」を同時に投げ、選ばれた欄の答えだけ使う）
 - text 欄 → chunk をそのまま value。電話/郵便番号/日付は regex で候補を over-find（`\d[\d\-]{8,}` 等）→ 候補が1つなら正規化してその値、複数なら Choice で選択
 - 確認ゲートなし（自己責任・Undo で足りる）。`ponytail:` 業務版で必要なら confidence 帯で「確認」状態を追加

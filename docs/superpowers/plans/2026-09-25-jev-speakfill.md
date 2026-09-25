@@ -1,0 +1,1276 @@
+# jev-speakfill Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 話した日本語が、画面に見えているフォームの正しい欄に segment 確定ごとに入る Chrome 拡張（MV3）。
+
+**Architecture:** `src/core/` は DOM も mic も知らない純粋ロジック（`segment` で chunk 化、`route` で Jev に「どの欄か」を選ばせる）。`src/ext/` は MV3 ホスト：side panel が Web Speech を回して core を呼び、content script が欄収集と書き込み/Undo、service worker が Jev HTTP 呼び出しと API キー保持だけを担う。
+
+**Tech Stack:** TypeScript, esbuild（バンドル）, Vitest（+ jsdom は content script テストのみ）, Chrome MV3 side panel, Web Speech API, TypeSafe Jev HTTP API (`POST https://api.typesafe.ai/v1/systemone`, model `jev-latest`)。フレームワークなし。
+
+**Spec:** `docs/superpowers/specs/2026-09-25-jev-speakfill-design.md`
+
+## Global Constraints
+
+- Jev は選ぶだけ。値は STT 文字列の verbatim（regex 正規化を除く）。LLM 生成は使わない
+- API キーは `chrome.storage.local` のみ。service worker からしか読まない。content script へ渡さない
+- Jev に送るのは Field の `label/kind/options`、chunk、`filled` のみ。ページ本文・URL は送らない
+- `type=password`、`autocomplete^=cc-`、`autocomplete=one-time-code`、`disabled`/`readonly` は Field に含めない。Field 上限 100
+- 配置は `isFinal=true` のときだけ。interim はプレビュー表示のみ
+- `choice==='none'` または `confidence < 0.35` は未配置
+- MVP 想定入力は商品情報「赤、革、ルイヴィトン」（欄名なし）。同音異義の誤変換（川/皮→革）は、選択肢を持つ欄では選択肢側で吸収する（Jev の instructions で読み一致を指示。読み辞書は持たない）
+- 自動リトライなし。確認ゲートなし。E2E なし
+- 新規依存は `typescript`, `esbuild`, `vitest`, `jsdom`, `@types/chrome` のみ
+
+## Review Focus
+
+1. Web Speech の final 文に読点も助詞もない「山田太郎 090 1234 5678」（空白区切りのみ）→ 空白で chunk 化されて 2 欄に入ること（Task 2 のテストで固定）
+2. 欄ラベルが空（placeholder も label もない input）→ Field の `label` が `name` 属性か空文字で、`route` がクラッシュせず `none` を扱えること（Task 4・5）
+3. React 制御コンポーネント（value を setter で書いても state が更新されない）→ native setter + `input` イベントで React が拾うこと（Task 5 で native setter を使う）
+4. Jev が 401/429/ネットワークエラー → chunk が「未配置」として side panel に残り、拡張が止まらないこと（Task 6・7）
+5. Web Speech が `continuous` でも勝手に `onend` する → 停止ボタンを押していない限り自動再開すること（Task 7）
+6. 文字起こし「川」・欄「素材」(select: 革/布/金属) → 欄=素材、値=革 になること（Task 3 の instructions、Task 4 のテスト、Task 8 の fixture）
+
+---
+
+### Task 1: プロジェクト雛形とビルド
+
+**Files:**
+- Create: `package.json`, `tsconfig.json`, `build.mjs`, `vitest.config.ts`, `.gitignore`, `src/core/types.ts`, `tests/core/types.test.ts`
+
+**Interfaces:**
+- Produces: `src/core/types.ts` の `Field`, `Chunk`, `Placement`, `JevAsk`, `Question`, `Answer`
+
+- [ ] **Step 1: package.json とツール設定を書く**
+
+```json
+{
+  "name": "jev-speakfill",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.280",
+    "esbuild": "^0.24.0",
+    "jsdom": "^25.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
+```
+
+`tsconfig.json`:
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["chrome", "vitest/globals"],
+    "noEmit": true
+  },
+  "include": ["src", "tests"]
+}
+```
+
+`vitest.config.ts`:
+```ts
+import { defineConfig } from 'vitest/config'
+export default defineConfig({ test: { globals: true } })
+```
+
+`build.mjs`:
+```js
+import { build } from 'esbuild'
+import { cpSync, mkdirSync } from 'node:fs'
+mkdirSync('dist', { recursive: true })
+await build({
+  entryPoints: {
+    background: 'src/ext/background.ts',
+    content: 'src/ext/content.ts',
+    sidepanel: 'src/ext/sidepanel.ts',
+    options: 'src/ext/options.ts',
+  },
+  bundle: true, format: 'esm', outdir: 'dist', target: 'chrome116', sourcemap: true,
+})
+cpSync('src/ext/static', 'dist', { recursive: true })
+```
+
+`.gitignore`:
+```
+node_modules
+dist
+```
+
+- [ ] **Step 2: 型を書く**
+
+`src/core/types.ts`:
+```ts
+export type FieldKind = 'text' | 'select' | 'radio' | 'checkbox'
+
+export type Field = {
+  id: string
+  label: string
+  kind: FieldKind
+  options?: string[]
+}
+
+export type Chunk = { text: string; hint?: string }
+
+export type Placement = { fieldId: string; value: string; chunk: string; confidence: number }
+
+export type Question = {
+  type: 'choice'
+  instructions: string
+  criteria: Record<string, string>
+}
+
+export type Answer = {
+  type: 'choice'
+  choice: string
+  probabilities: Record<string, number>
+  confidence: number
+}
+
+export type JevAsk = (state: unknown, questions: Record<string, Question>) => Promise<Record<string, Answer>>
+```
+
+- [ ] **Step 3: 型の存在を固定するテストを書く**
+
+`tests/core/types.test.ts`:
+```ts
+import type { Field } from '../../src/core/types'
+
+test('Field は id/label/kind を持つ', () => {
+  const f: Field = { id: 'f1', label: '氏名', kind: 'text' }
+  expect(f.kind).toBe('text')
+})
+```
+
+- [ ] **Step 4: 依存を入れてテストを走らせる**
+
+Run: `npm install && npm test && npm run typecheck`
+Expected: 1 passed、typecheck エラーなし
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add -A
+git commit -m "chore: scaffold ts/esbuild/vitest + core types"
+```
+
+---
+
+### Task 2: `segment` — final テキストの chunk 化
+
+**Files:**
+- Create: `src/core/segment.ts`, `tests/core/segment.test.ts`
+
+**Interfaces:**
+- Consumes: `Chunk`, `Field` from `src/core/types.ts`
+- Produces: `segment(text: string, isFinal: boolean, fields: Field[]): Chunk[]`
+
+- [ ] **Step 1: 失敗するテストを書く**
+
+`tests/core/segment.test.ts`:
+```ts
+import { segment } from '../../src/core/segment'
+import type { Field } from '../../src/core/types'
+
+const fields: Field[] = [
+  { id: 'name', label: '氏名', kind: 'text' },
+  { id: 'tel', label: '電話番号', kind: 'text' },
+  { id: 'email', label: 'メールアドレス', kind: 'text' },
+  { id: 'pref', label: '都道府県', kind: 'select', options: ['東京都', '大阪府'] },
+]
+
+test('interim は何も返さない', () => {
+  expect(segment('山田太郎、電話は', false, fields)).toEqual([])
+})
+
+test('読点で割る', () => {
+  expect(segment('山田太郎、東京都', true, fields)).toEqual([
+    { text: '山田太郎' }, { text: '東京都' },
+  ])
+})
+
+test('空白のみでも割る（Review Focus 1）', () => {
+  expect(segment('山田太郎 09012345678', true, fields)).toEqual([
+    { text: '山田太郎' }, { text: '09012345678' },
+  ])
+})
+
+test('欄ラベル語+は を剥がして hint にする', () => {
+  expect(segment('電話は09012345678、メールはa@b.jp', true, fields)).toEqual([
+    { text: '09012345678', hint: '電話番号' },
+    { text: 'a@b.jp', hint: 'メールアドレス' },
+  ])
+})
+
+test('同義語表でも hint が付く', () => {
+  expect(segment('名前は山田太郎', true, fields)).toEqual([{ text: '山田太郎', hint: '氏名' }])
+})
+
+test('助詞境界「〜は」で 1 chunk 内の複数値を割る', () => {
+  expect(segment('山田太郎で電話は09012345678です', true, fields)).toEqual([
+    { text: '山田太郎' }, { text: '09012345678', hint: '電話番号' },
+  ])
+})
+
+test('1文字以下・空は捨てる', () => {
+  expect(segment('、。 あ、', true, fields)).toEqual([])
+})
+```
+
+- [ ] **Step 2: 失敗を確認**
+
+Run: `npx vitest run tests/core/segment.test.ts`
+Expected: FAIL（`segment` が見つからない）
+
+- [ ] **Step 3: 実装**
+
+`src/core/segment.ts`:
+```ts
+import type { Chunk, Field } from './types'
+
+// ponytail: 日本語ヒューリスティック。境界が誤るケースが出たら spec の B 案（欄ごとの Noul）を none 時 fallback に足す
+const SPLIT = /[、。,\s]+/
+const PARTICLE_SPLIT = /(?=[^、。,\s]{1,12}[はがで](?=[^はがで]))/  // 「電話は」「住所で」の直前で割る
+const TRAIL = /(です|でございます|になります|だよ|ね|よ)$/
+
+// 欄ラベルに含まれていれば hint 扱いにする同義語。左: 発話語, 右: label に含まれる文字列
+const SYNONYMS: [string, string][] = [
+  ['名前', '氏名'], ['なまえ', '氏名'], ['電話', '電話'], ['メール', 'メール'],
+  ['住所', '住所'], ['郵便', '郵便'], ['ふりがな', 'かな'], ['フリガナ', 'カナ'],
+]
+
+function stripHint(text: string, fields: Field[]): Chunk {
+  const m = /^(.{1,12}?)[はが](.+)$/.exec(text)
+  if (!m) return { text }
+  const word = m[1]
+  const byLabel = fields.find((f) => f.label && f.label.startsWith(word))
+  const bySyn = SYNONYMS.find(([spoken]) => word === spoken)
+  const target = byLabel ?? (bySyn && fields.find((f) => f.label.includes(bySyn[1])))
+  return target ? { text: m[2], hint: target.label } : { text }
+}
+
+export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[] {
+  if (!isFinal) return []
+  return text
+    .split(SPLIT)
+    .flatMap((part) => part.split(PARTICLE_SPLIT))
+    .map((part) => part.replace(TRAIL, '').replace(/[でと]$/, ''))
+    .filter((part) => part.length > 1)
+    .map((part) => stripHint(part, fields))
+    .filter((c) => c.text.length > 1)
+}
+```
+
+- [ ] **Step 4: テストが通るまで正規表現を調整**
+
+Run: `npx vitest run tests/core/segment.test.ts`
+Expected: 7 passed。通らない場合は `PARTICLE_SPLIT`/`stripHint` を直す（テストは変えない）
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/core/segment.ts tests/core/segment.test.ts
+git commit -m "feat(core): segment — final テキストを chunk 化し欄ラベル語を hint に剥がす"
+```
+
+---
+
+### Task 3: Jev 質問の組み立てと answer 解釈
+
+**Files:**
+- Create: `src/core/jev.ts`, `tests/core/jev.test.ts`
+
+**Interfaces:**
+- Consumes: `Field`, `Chunk`, `Question`, `Answer`
+- Produces:
+  - `buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<string,string>): { state: unknown; questions: Record<string, Question> }`
+  - question id 規約: `c{i}` = chunk i の欄選択、`c{i}_{fieldId}` = chunk i が select/radio/checkbox 欄 fieldId のとき option 選択
+  - `THRESHOLD = 0.35`
+
+- [ ] **Step 1: 失敗するテストを書く**
+
+`tests/core/jev.test.ts`:
+```ts
+import { buildQuestions, THRESHOLD } from '../../src/core/jev'
+import type { Field } from '../../src/core/types'
+
+const fields: Field[] = [
+  { id: 'name', label: '氏名', kind: 'text' },
+  { id: 'pref', label: '都道府県', kind: 'select', options: ['東京都', '大阪府'] },
+]
+
+test('chunk ごとに Choice を1問、criteria は欄ID + none', () => {
+  const { questions } = buildQuestions(fields, [{ text: '山田太郎' }, { text: '東京', hint: '都道府県' }], {})
+  expect(Object.keys(questions.c0.criteria)).toEqual(['name', 'pref', 'none'])
+  expect(questions.c1.instructions).toContain('都道府県')      // hint が instructions に入る
+})
+
+test('select 欄がある chunk には option 選択を投機的に同梱', () => {
+  const { questions } = buildQuestions(fields, [{ text: '東京' }], {})
+  expect(Object.keys(questions.c0_pref.criteria)).toEqual(['東京都', '大阪府', 'none'])
+})
+
+test('欄選択・option 選択とも同音異義の注意が instructions に入る（Review Focus 6）', () => {
+  const { questions } = buildQuestions(fields, [{ text: '川' }], {})
+  expect(questions.c0.instructions).toContain('同音')
+  expect(questions.c0_pref.instructions).toContain('同音')
+})
+
+test('state に欄と chunk と filled が入り、ページ本文は含まない', () => {
+  const { state } = buildQuestions(fields, [{ text: '山田太郎' }], { name: '前の値' }) as { state: Record<string, unknown> }
+  expect(Object.keys(state).sort()).toEqual(['chunks', 'fields', 'filled'])
+})
+
+test('閾値', () => expect(THRESHOLD).toBe(0.35))
+```
+
+- [ ] **Step 2: 失敗を確認**
+
+Run: `npx vitest run tests/core/jev.test.ts`
+Expected: FAIL
+
+- [ ] **Step 3: 実装**
+
+`src/core/jev.ts`:
+```ts
+import type { Chunk, Field, Question } from './types'
+
+export const THRESHOLD = 0.35
+export const NONE = 'none'
+const STT_NOTE = '入力は音声認識の文字起こしで、同音異義の誤変換がありうる（例: 「川」「皮」→「革」）。読みが一致するものを優先せよ。'
+
+export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<string, string>) {
+  const questions: Record<string, Question> = {}
+  chunks.forEach((chunk, i) => {
+    const criteria: Record<string, string> = {}
+    for (const f of fields) {
+      criteria[f.id] = `${f.label || '(ラベルなし)'} (${f.kind}${f.options ? ': ' + f.options.join('/') : ''})`
+    }
+    criteria[NONE] = '雑談・指示・どの欄の値でもない'
+    questions[`c${i}`] = {
+      type: 'choice',
+      instructions:
+        `\`chunks[${i}].text\` は日本語フォームのどの入力欄に入れるべき値か。欄名は発話されないことが多い。${STT_NOTE}` +
+        (chunk.hint ? `話者は欄名「${chunk.hint}」を明示した。強く考慮せよ。` : '') +
+        `既に \`filled\` にある欄は、値の種類が明らかに一致するときだけ選べ。`,
+      criteria,
+    }
+    for (const f of fields) {
+      if (!f.options?.length) continue
+      const oc: Record<string, string> = {}
+      for (const o of f.options) oc[o] = o
+      oc[NONE] = 'どの選択肢にも当たらない'
+      questions[`c${i}_${f.id}`] = {
+        type: 'choice',
+        instructions: `\`chunks[${i}].text\` が欄「${f.label}」の値だとしたら、どの選択肢を指しているか。${STT_NOTE}`,
+        criteria: oc,
+      }
+    }
+  })
+  const state = {
+    fields: fields.map(({ id, label, kind, options }) => ({ id, label, kind, options })),
+    chunks,
+    filled,
+  }
+  return { state, questions }
+}
+```
+
+- [ ] **Step 4: テストが通ることを確認**
+
+Run: `npx vitest run tests/core/jev.test.ts`
+Expected: 5 passed
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/core/jev.ts tests/core/jev.test.ts
+git commit -m "feat(core): Jev 質問ビルダー（chunk→欄 Choice + select 投機質問）"
+```
+
+---
+
+### Task 4: `route` — 答えを Placement にする
+
+**Files:**
+- Create: `src/core/route.ts`, `src/core/normalize.ts`, `tests/core/route.test.ts`, `tests/core/normalize.test.ts`
+
+**Interfaces:**
+- Consumes: `buildQuestions`, `THRESHOLD`, `NONE`, 型一式
+- Produces:
+  - `route(fields: Field[], chunks: Chunk[], filled: Record<string,string>, ask: JevAsk): Promise<Placement[]>`
+  - `normalize(text: string, label: string): string`（電話/郵便番号の数字正規化）
+
+- [ ] **Step 1: normalize の失敗するテスト**
+
+`tests/core/normalize.test.ts`:
+```ts
+import { normalize } from '../../src/core/normalize'
+
+test('電話欄: 全角・空白・ハイフン混在を半角数字ハイフンに', () => {
+  expect(normalize('０９０ 1234 5678', '電話番号')).toBe('090-1234-5678')
+})
+test('郵便番号欄: 7桁を 3-4 に', () => {
+  expect(normalize('1000001', '郵便番号')).toBe('100-0001')
+})
+test('それ以外の欄は verbatim', () => {
+  expect(normalize('山田 太郎', '氏名')).toBe('山田 太郎')
+})
+test('電話欄でも数字が見つからなければ verbatim', () => {
+  expect(normalize('あとで', '電話番号')).toBe('あとで')
+})
+```
+
+- [ ] **Step 2: normalize 実装**
+
+`src/core/normalize.ts`:
+```ts
+const toHalf = (s: string) => s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+
+// ponytail: 電話と郵便番号だけ。日付は Web Speech が「9月25日」で返すので今は触らない
+export function normalize(text: string, label: string): string {
+  const digits = toHalf(text).replace(/[^\d]/g, '')
+  if (/郵便|〒/.test(label) && digits.length === 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`
+  if (/電話|TEL|tel|携帯|FAX/.test(label) && digits.length >= 10) {
+    return digits.length === 11
+      ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+      : `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`
+  }
+  return text
+}
+```
+
+Run: `npx vitest run tests/core/normalize.test.ts` → 4 passed
+
+- [ ] **Step 3: route の失敗するテスト**
+
+`tests/core/route.test.ts`:
+```ts
+import { route } from '../../src/core/route'
+import type { Answer, Field, JevAsk } from '../../src/core/types'
+
+const fields: Field[] = [
+  { id: 'name', label: '氏名', kind: 'text' },
+  { id: 'tel', label: '電話番号', kind: 'text' },
+  { id: 'pref', label: '都道府県', kind: 'select', options: ['東京都', '大阪府'] },
+  { id: 'nolabel', label: '', kind: 'text' },
+]
+
+const answer = (choice: string, confidence = 0.9): Answer => ({
+  type: 'choice', choice, probabilities: { [choice]: confidence }, confidence,
+})
+
+function fakeAsk(map: Record<string, Answer>): JevAsk {
+  return async (_state, questions) => {
+    const out: Record<string, Answer> = {}
+    for (const id of Object.keys(questions)) out[id] = map[id] ?? answer('none', 0.1)
+    return out
+  }
+}
+
+test('text 欄は chunk を verbatim で配置', async () => {
+  const r = await route(fields, [{ text: '山田太郎' }], {}, fakeAsk({ c0: answer('name') }))
+  expect(r).toEqual([{ fieldId: 'name', value: '山田太郎', chunk: '山田太郎', confidence: 0.9 }])
+})
+
+test('電話欄は正規化', async () => {
+  const r = await route(fields, [{ text: '０９０１２３４５６７８' }], {}, fakeAsk({ c0: answer('tel') }))
+  expect(r[0].value).toBe('090-1234-5678')
+})
+
+test('select 欄は option 質問の答えを値にする', async () => {
+  const r = await route(fields, [{ text: '東京' }], {}, fakeAsk({ c0: answer('pref'), c0_pref: answer('東京都') }))
+  expect(r[0].value).toBe('東京都')
+})
+
+test('同音異義: chunk「川」でも option 質問が「革」を返せばそれを書く（Review Focus 6）', async () => {
+  const f: Field[] = [...fields, { id: 'material', label: '素材', kind: 'select', options: ['革', '布', '金属'] }]
+  const r = await route(f, [{ text: '川' }], {}, fakeAsk({ c0: answer('material'), c0_material: answer('革', 0.7) }))
+  expect(r[0]).toMatchObject({ fieldId: 'material', value: '革', chunk: '川' })
+})
+
+test('select 欄で option が none なら未配置', async () => {
+  const r = await route(fields, [{ text: '北海道' }], {}, fakeAsk({ c0: answer('pref'), c0_pref: answer('none') }))
+  expect(r).toEqual([])
+})
+
+test('none / 低 confidence は未配置', async () => {
+  const r = await route(fields, [{ text: 'えーと' }, { text: '山田' }], {}, fakeAsk({ c0: answer('none'), c1: answer('name', 0.2) }))
+  expect(r).toEqual([])
+})
+
+test('ラベル空の欄があってもクラッシュしない（Review Focus 2）', async () => {
+  const r = await route(fields, [{ text: 'x y' }], {}, fakeAsk({ c0: answer('nolabel') }))
+  expect(r[0].fieldId).toBe('nolabel')
+})
+
+test('chunk が空なら ask を呼ばない', async () => {
+  let called = 0
+  const ask: JevAsk = async () => { called++; return {} }
+  expect(await route(fields, [], {}, ask)).toEqual([])
+  expect(called).toBe(0)
+})
+```
+
+- [ ] **Step 4: route 実装**
+
+`src/core/route.ts`:
+```ts
+import { buildQuestions, NONE, THRESHOLD } from './jev'
+import { normalize } from './normalize'
+import type { Chunk, Field, JevAsk, Placement } from './types'
+
+export async function route(fields: Field[], chunks: Chunk[], filled: Record<string, string>, ask: JevAsk): Promise<Placement[]> {
+  if (chunks.length === 0 || fields.length === 0) return []
+  const { state, questions } = buildQuestions(fields, chunks, filled)
+  const answers = await ask(state, questions)
+  const out: Placement[] = []
+  chunks.forEach((chunk, i) => {
+    const a = answers[`c${i}`]
+    if (!a || a.choice === NONE || a.confidence < THRESHOLD) return
+    const field = fields.find((f) => f.id === a.choice)
+    if (!field) return
+    let value: string
+    if (field.options?.length) {
+      const opt = answers[`c${i}_${field.id}`]
+      if (!opt || opt.choice === NONE) return
+      value = opt.choice
+    } else {
+      value = normalize(chunk.text, field.label)
+    }
+    out.push({ fieldId: field.id, value, chunk: chunk.text, confidence: a.confidence })
+  })
+  return out
+}
+```
+
+- [ ] **Step 5: 全テスト通過を確認**
+
+Run: `npm test && npm run typecheck`
+Expected: すべて passed
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/core/route.ts src/core/normalize.ts tests/core/route.test.ts tests/core/normalize.test.ts
+git commit -m "feat(core): route — Jev の答えを Placement に変換、電話/郵便番号を正規化"
+```
+
+---
+
+### Task 5: content script — 欄収集・書き込み・Undo
+
+**Files:**
+- Create: `src/ext/dom.ts`（純粋 DOM ロジック、テスト対象）, `src/ext/content.ts`（メッセージ受け口）, `tests/ext/dom.test.ts`
+
+**Interfaces:**
+- Consumes: `Field`, `Placement`
+- Produces（`src/ext/dom.ts`）:
+  - `collectFields(root: Document): Field[]`（内部で要素を `Map<string, HTMLElement>` に保持）
+  - `applyPlacement(p: Placement): { fieldId: string; prev: string } | null`
+  - `restore(fieldId: string, prev: string): void`
+- メッセージ規約（`src/ext/content.ts`、`chrome.runtime.onMessage`）:
+  - `{ type: 'collect' }` → `Field[]`
+  - `{ type: 'apply', placement: Placement }` → `{ fieldId, prev } | null`
+  - `{ type: 'restore', fieldId, prev }` → `true`
+
+- [ ] **Step 1: 失敗するテスト（jsdom）**
+
+`tests/ext/dom.test.ts`:
+```ts
+// @vitest-environment jsdom
+import { collectFields, applyPlacement, restore } from '../../src/ext/dom'
+
+function page(html: string) {
+  document.body.innerHTML = html
+  return collectFields(document)
+}
+
+test('label for / aria-label / placeholder / name / 隣接テキストの順で label を作る', () => {
+  const fields = page(`
+    <label for="a">氏名</label><input id="a">
+    <input id="b" aria-label="ふりがな">
+    <input id="c" placeholder="メール">
+    <input id="d" name="tel">
+    <div>住所</div><input id="e">
+  `)
+  expect(fields.map((f) => f.label)).toEqual(['氏名', 'ふりがな', 'メール', 'tel', '住所'])
+})
+
+test('password / cc-* / one-time-code / hidden / disabled は除外', () => {
+  const fields = page(`
+    <input type="password"><input autocomplete="cc-number"><input autocomplete="one-time-code">
+    <input type="hidden"><input disabled><input readonly><input id="ok">
+  `)
+  expect(fields).toHaveLength(1)
+})
+
+test('select / radio / checkbox は kind と options を持つ', () => {
+  const fields = page(`
+    <label for="p">都道府県</label><select id="p"><option>東京都</option><option>大阪府</option></select>
+    <fieldset><legend>性別</legend>
+      <label><input type="radio" name="sex" value="m">男性</label>
+      <label><input type="radio" name="sex" value="f">女性</label>
+    </fieldset>
+    <label><input type="checkbox" id="agree">同意する</label>
+  `)
+  expect(fields).toEqual([
+    { id: expect.any(String), label: '都道府県', kind: 'select', options: ['東京都', '大阪府'] },
+    { id: expect.any(String), label: '性別', kind: 'radio', options: ['男性', '女性'] },
+    { id: expect.any(String), label: '同意する', kind: 'checkbox', options: ['同意する'] },
+  ])
+})
+
+test('apply は native setter + input/change イベントで書き、prev を返す（Review Focus 3）', () => {
+  const [f] = page(`<label for="a">氏名</label><input id="a" value="旧">`)
+  const el = document.getElementById('a') as HTMLInputElement
+  const events: string[] = []
+  el.addEventListener('input', () => events.push('input'))
+  el.addEventListener('change', () => events.push('change'))
+  const r = applyPlacement({ fieldId: f.id, value: '山田太郎', chunk: '山田太郎', confidence: 1 })
+  expect(r).toEqual({ fieldId: f.id, prev: '旧' })
+  expect(el.value).toBe('山田太郎')
+  expect(events).toEqual(['input', 'change'])
+})
+
+test('select は表示ラベル一致の option を選ぶ / radio は該当を checked / checkbox は checked', () => {
+  const [sel, radio, cb] = page(`
+    <label for="p">都道府県</label><select id="p"><option value="13">東京都</option><option value="27">大阪府</option></select>
+    <fieldset><legend>性別</legend><label><input type="radio" name="sex" value="m">男性</label><label><input type="radio" name="sex" value="f">女性</label></fieldset>
+    <label><input type="checkbox" id="agree">同意する</label>
+  `)
+  applyPlacement({ fieldId: sel.id, value: '大阪府', chunk: '', confidence: 1 })
+  expect((document.getElementById('p') as HTMLSelectElement).value).toBe('27')
+  applyPlacement({ fieldId: radio.id, value: '女性', chunk: '', confidence: 1 })
+  expect((document.querySelector('input[value=f]') as HTMLInputElement).checked).toBe(true)
+  applyPlacement({ fieldId: cb.id, value: '同意する', chunk: '', confidence: 1 })
+  expect((document.getElementById('agree') as HTMLInputElement).checked).toBe(true)
+})
+
+test('restore で元に戻る', () => {
+  const [f] = page(`<label for="a">氏名</label><input id="a" value="旧">`)
+  applyPlacement({ fieldId: f.id, value: '新', chunk: '', confidence: 1 })
+  restore(f.id, '旧')
+  expect((document.getElementById('a') as HTMLInputElement).value).toBe('旧')
+})
+
+test('100 件で打ち切る', () => {
+  const fields = page(Array.from({ length: 120 }, (_, i) => `<input id="i${i}" placeholder="p${i}">`).join(''))
+  expect(fields).toHaveLength(100)
+})
+```
+
+- [ ] **Step 2: 失敗を確認**
+
+Run: `npx vitest run tests/ext/dom.test.ts`
+Expected: FAIL
+
+- [ ] **Step 3: dom.ts 実装**
+
+`src/ext/dom.ts`:
+```ts
+import type { Field, Placement } from '../core/types'
+
+const MAX = 100
+const registry = new Map<string, HTMLElement | HTMLElement[]>()  // radio は同名グループの配列
+let seq = 0
+
+const isExcluded = (el: HTMLInputElement) =>
+  el.type === 'hidden' || el.type === 'password' || el.type === 'submit' || el.type === 'button' || el.type === 'file' ||
+  el.disabled || el.readOnly ||
+  (el.autocomplete ?? '').startsWith('cc-') || el.autocomplete === 'one-time-code'
+
+function labelOf(el: HTMLElement): string {
+  const id = el.id
+  const forLabel = id && (el.ownerDocument.querySelector(`label[for="${CSS.escape(id)}"]`) as HTMLElement | null)
+  if (forLabel?.textContent?.trim()) return forLabel.textContent.trim()
+  const aria = el.getAttribute('aria-label')
+  if (aria) return aria.trim()
+  const by = el.getAttribute('aria-labelledby')
+  if (by) {
+    const t = by.split(/\s+/).map((i) => el.ownerDocument.getElementById(i)?.textContent?.trim() ?? '').join(' ').trim()
+    if (t) return t
+  }
+  const wrap = el.closest('label')
+  if (wrap?.textContent?.trim()) return wrap.textContent.trim()
+  const ph = el.getAttribute('placeholder')
+  if (ph) return ph.trim()
+  const name = el.getAttribute('name')
+  if (name) return name
+  // 直前の兄弟 or 親の直前の兄弟のテキスト
+  const prev = el.previousElementSibling ?? el.parentElement?.previousElementSibling
+  return prev?.textContent?.trim().slice(0, 40) ?? ''
+}
+
+function isVisible(el: HTMLElement): boolean {
+  // jsdom は layout を持たないので、hidden 属性と display:none だけ見る
+  if (el.hidden) return false
+  const st = el.ownerDocument.defaultView?.getComputedStyle(el)
+  return !st || st.display !== 'none'
+}
+
+export function collectFields(root: Document): Field[] {
+  registry.clear()
+  const out: Field[] = []
+  const seenRadio = new Set<string>()
+  const add = (el: HTMLElement | HTMLElement[], f: Omit<Field, 'id'>) => {
+    if (out.length >= MAX) return
+    const id = `f${seq++}`
+    registry.set(id, el)
+    out.push({ id, ...f })
+  }
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>('input, textarea, select'))) {
+    if (!isVisible(el)) continue
+    if (el instanceof HTMLInputElement && isExcluded(el)) continue
+    if (el instanceof HTMLSelectElement) {
+      add(el, { label: labelOf(el), kind: 'select', options: Array.from(el.options).map((o) => o.text.trim()) })
+    } else if (el instanceof HTMLInputElement && el.type === 'radio') {
+      const key = el.name || el.id
+      if (seenRadio.has(key)) continue
+      seenRadio.add(key)
+      const group = Array.from(root.querySelectorAll<HTMLInputElement>(`input[type=radio][name="${CSS.escape(el.name)}"]`))
+      const legend = el.closest('fieldset')?.querySelector('legend')?.textContent?.trim()
+      add(group, { label: legend ?? el.name, kind: 'radio', options: group.map(labelOf) })
+    } else if (el instanceof HTMLInputElement && el.type === 'checkbox') {
+      const label = labelOf(el)
+      add(el, { label, kind: 'checkbox', options: [label] })
+    } else {
+      add(el, { label: labelOf(el), kind: 'text' })
+    }
+  }
+  return out
+}
+
+function setNative(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string) {
+  const proto = Object.getPrototypeOf(el)
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
+  setter ? setter.call(el, value) : (el.value = value)
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+  el.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+function setChecked(el: HTMLInputElement, checked: boolean) {
+  el.checked = checked
+  el.dispatchEvent(new Event('click', { bubbles: true }))
+  el.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+export function applyPlacement(p: Placement): { fieldId: string; prev: string } | null {
+  const target = registry.get(p.fieldId)
+  if (!target) return null
+  if (Array.isArray(target)) {
+    const radios = target as HTMLInputElement[]
+    const prev = radios.find((r) => r.checked)?.value ?? ''
+    const hit = radios.find((r) => labelOf(r) === p.value)
+    if (!hit) return null
+    setChecked(hit, true)
+    return { fieldId: p.fieldId, prev }
+  }
+  if (target instanceof HTMLSelectElement) {
+    const opt = Array.from(target.options).find((o) => o.text.trim() === p.value)
+    if (!opt) return null
+    const prev = target.value
+    setNative(target, opt.value)
+    return { fieldId: p.fieldId, prev }
+  }
+  if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+    const prev = String(target.checked)
+    setChecked(target, true)
+    return { fieldId: p.fieldId, prev }
+  }
+  const input = target as HTMLInputElement | HTMLTextAreaElement
+  const prev = input.value
+  setNative(input, p.value)
+  return { fieldId: p.fieldId, prev }
+}
+
+export function restore(fieldId: string, prev: string): void {
+  const target = registry.get(fieldId)
+  if (!target) return
+  if (Array.isArray(target)) {
+    for (const r of target as HTMLInputElement[]) r.checked = r.value === prev
+    return
+  }
+  if (target instanceof HTMLInputElement && target.type === 'checkbox') return setChecked(target, prev === 'true')
+  setNative(target as HTMLInputElement, prev)
+}
+```
+
+- [ ] **Step 4: content.ts（メッセージ受け口のみ）**
+
+`src/ext/content.ts`:
+```ts
+import { applyPlacement, collectFields, restore } from './dom'
+
+chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  if (msg.type === 'collect') reply(collectFields(document))
+  else if (msg.type === 'apply') reply(applyPlacement(msg.placement))
+  else if (msg.type === 'restore') { restore(msg.fieldId, msg.prev); reply(true) }
+  return false
+})
+```
+
+- [ ] **Step 5: テスト通過を確認**
+
+Run: `npx vitest run tests/ext/dom.test.ts && npm run typecheck`
+Expected: 7 passed。`isVisible` が jsdom で落ちるなら `getComputedStyle` の呼び出しを try/catch で包む
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/ext/dom.ts src/ext/content.ts tests/ext/dom.test.ts
+git commit -m "feat(ext): content script — 欄収集(ラベル多段解決・除外・100件上限)、native setter で書き込み、restore"
+```
+
+---
+
+### Task 6: service worker — Jev 呼び出しと API キー、options ページ
+
+**Files:**
+- Create: `src/ext/jevClient.ts`（fetch ラッパ、テスト対象）, `src/ext/background.ts`, `src/ext/options.ts`, `src/ext/static/options.html`, `tests/ext/jevClient.test.ts`
+
+**Interfaces:**
+- Produces:
+  - `callJev(apiKey: string, state: unknown, questions: Record<string, Question>, fetchImpl?: typeof fetch): Promise<Record<string, Answer>>` — 失敗時は `Error(\`jev ${status}\`)` を throw
+  - メッセージ規約（`background.ts`、`chrome.runtime.onMessage`）: `{ type: 'ask', state, questions }` → `{ ok: true, answers } | { ok: false, error: string }`
+  - storage キー: `chrome.storage.local` の `typesafeApiKey`
+
+- [ ] **Step 1: 失敗するテスト**
+
+`tests/ext/jevClient.test.ts`:
+```ts
+import { callJev } from '../../src/ext/jevClient'
+
+const q = { c0: { type: 'choice' as const, instructions: 'x', criteria: { a: 'A', none: 'n' } } }
+
+test('POST /v1/systemone に Bearer と model=jev-latest で送り answers を返す', async () => {
+  let captured: { url: string; init: RequestInit } | undefined
+  const fetchImpl = (async (url: string, init: RequestInit) => {
+    captured = { url, init }
+    return new Response(JSON.stringify({ model: 'jev-latest', answers: { c0: { type: 'choice', choice: 'a', probabilities: { a: 1 }, confidence: 1 } } }), { status: 200 })
+  }) as unknown as typeof fetch
+  const answers = await callJev('KEY', { s: 1 }, q, fetchImpl)
+  expect(captured!.url).toBe('https://api.typesafe.ai/v1/systemone')
+  expect((captured!.init.headers as Record<string, string>).Authorization).toBe('Bearer KEY')
+  expect(JSON.parse(captured!.init.body as string).model).toBe('jev-latest')
+  expect(answers.c0.choice).toBe('a')
+})
+
+test('非 2xx は Error(jev <status>) を throw（Review Focus 4）', async () => {
+  const fetchImpl = (async () => new Response('nope', { status: 429 })) as unknown as typeof fetch
+  await expect(callJev('KEY', {}, q, fetchImpl)).rejects.toThrow('jev 429')
+})
+
+test('キーが空なら fetch せずに throw', async () => {
+  let called = false
+  const fetchImpl = (async () => { called = true; return new Response('{}') }) as unknown as typeof fetch
+  await expect(callJev('', {}, q, fetchImpl)).rejects.toThrow('API キー未設定')
+  expect(called).toBe(false)
+})
+```
+
+- [ ] **Step 2: 失敗を確認**
+
+Run: `npx vitest run tests/ext/jevClient.test.ts` → FAIL
+
+- [ ] **Step 3: 実装**
+
+`src/ext/jevClient.ts`:
+```ts
+import type { Answer, Question } from '../core/types'
+
+export async function callJev(
+  apiKey: string, state: unknown, questions: Record<string, Question>, fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, Answer>> {
+  if (!apiKey) throw new Error('API キー未設定')
+  const res = await fetchImpl('https://api.typesafe.ai/v1/systemone', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'jev-latest', state, questions }),
+  })
+  if (!res.ok) throw new Error(`jev ${res.status}`)
+  const json = (await res.json()) as { answers: Record<string, Answer> }
+  return json.answers
+}
+```
+
+`src/ext/background.ts`:
+```ts
+import { callJev } from './jevClient'
+
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+
+chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  if (msg.type !== 'ask') return false
+  chrome.storage.local.get('typesafeApiKey').then(async ({ typesafeApiKey }) => {
+    try {
+      reply({ ok: true, answers: await callJev(typesafeApiKey ?? '', msg.state, msg.questions) })
+    } catch (e) {
+      reply({ ok: false, error: e instanceof Error ? e.message : String(e) })
+    }
+  })
+  return true
+})
+```
+
+`src/ext/static/options.html`:
+```html
+<!doctype html><meta charset="utf-8"><title>jev-speakfill 設定</title>
+<label>TypeSafe API キー <input id="key" type="password" size="50"></label>
+<button id="save">保存</button> <span id="msg"></span>
+<p>キーは chrome.storage.local にのみ保存され、拡張の service worker からしか使われません。</p>
+<script type="module" src="options.js"></script>
+```
+
+`src/ext/options.ts`:
+```ts
+const key = document.getElementById('key') as HTMLInputElement
+const msg = document.getElementById('msg')!
+chrome.storage.local.get('typesafeApiKey').then(({ typesafeApiKey }) => { if (typesafeApiKey) key.value = typesafeApiKey })
+document.getElementById('save')!.onclick = async () => {
+  await chrome.storage.local.set({ typesafeApiKey: key.value.trim() })
+  msg.textContent = '保存しました'
+}
+```
+
+- [ ] **Step 4: テスト通過とビルド**
+
+Run: `npx vitest run tests/ext/jevClient.test.ts && npm run typecheck`
+Expected: 3 passed（`build` は Task 7 で sidepanel.ts が揃ってから）
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/ext/jevClient.ts src/ext/background.ts src/ext/options.ts src/ext/static/options.html tests/ext/jevClient.test.ts
+git commit -m "feat(ext): service worker で Jev 呼び出し、options で BYOK 保存"
+```
+
+---
+
+### Task 7: side panel — Web Speech とコアの配線、manifest、サンプルフォーム
+
+**Files:**
+- Create: `src/ext/sidepanel.ts`, `src/ext/static/sidepanel.html`, `src/ext/static/manifest.json`, `src/ext/static/icon.png`（任意の 128px PNG。無ければ manifest から `icons` を外す）, `examples/form.html`
+
+**Interfaces:**
+- Consumes: `segment`, `route`, content/background のメッセージ規約（Task 5・6）
+- Produces: 動く拡張
+
+- [ ] **Step 1: manifest**
+
+`src/ext/static/manifest.json`:
+```json
+{
+  "manifest_version": 3,
+  "name": "jev-speakfill",
+  "version": "0.1.0",
+  "description": "話すだけで、日本語フォームの正しい欄に入力（TypeSafe Jev）",
+  "permissions": ["sidePanel", "storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "options_page": "options.html",
+  "action": { "default_title": "jev-speakfill" },
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }]
+}
+```
+
+- [ ] **Step 2: side panel HTML**
+
+`src/ext/static/sidepanel.html`:
+```html
+<!doctype html><meta charset="utf-8"><title>jev-speakfill</title>
+<style>
+  body{font:14px system-ui;margin:12px} button{font-size:16px;padding:6px 12px}
+  #interim{color:#888;min-height:1.5em} #log{margin-top:8px} .item{border-bottom:1px solid #eee;padding:4px 0}
+  .none{color:#a00} .err{color:#a00;font-weight:bold} details{margin-top:8px} pre{font-size:11px;white-space:pre-wrap}
+</style>
+<button id="toggle">🎤 開始</button> <button id="undo" disabled>↩ 取り消し</button> <span id="status"></span>
+<div id="interim"></div>
+<div id="log"></div>
+<details><summary>Jev に送った内容（直近）</summary><pre id="sent"></pre></details>
+<script type="module" src="sidepanel.js"></script>
+```
+
+- [ ] **Step 3: side panel ロジック**
+
+`src/ext/sidepanel.ts`:
+```ts
+import { segment } from '../core/segment'
+import { route } from '../core/route'
+import type { Field, JevAsk, Placement } from '../core/types'
+
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
+const toggle = $<HTMLButtonElement>('toggle'), undoBtn = $<HTMLButtonElement>('undo')
+const status = $('status'), interimEl = $('interim'), log = $('log'), sent = $<HTMLPreElement>('sent')
+
+let listening = false
+let fields: Field[] = []
+const filled: Record<string, string> = {}
+const undoStack: { fieldId: string; prev: string; label: string }[] = []
+
+async function activeTabId(): Promise<number> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  if (!tab?.id) throw new Error('アクティブタブなし')
+  return tab.id
+}
+const toTab = async (msg: unknown) => chrome.tabs.sendMessage(await activeTabId(), msg)
+
+const ask: JevAsk = async (state, questions) => {
+  sent.textContent = JSON.stringify({ state, questions }, null, 1)
+  const res = await chrome.runtime.sendMessage({ type: 'ask', state, questions })
+  if (!res?.ok) throw new Error(res?.error ?? 'unknown')
+  return res.answers
+}
+
+function addLog(html: string, cls = '') {
+  const div = document.createElement('div')
+  div.className = `item ${cls}`
+  div.innerHTML = html
+  log.prepend(div)
+}
+
+async function onFinal(text: string) {
+  fields = (await toTab({ type: 'collect' })) as Field[]   // SPA 対策: 確定ごとに取り直す
+  const chunks = segment(text, true, fields)
+  if (chunks.length === 0) return
+  let placements: Placement[]
+  try {
+    placements = await route(fields, chunks, filled, ask)
+  } catch (e) {
+    addLog(`Jev エラー: ${(e as Error).message} — 「${text}」は未配置`, 'err')
+    return
+  }
+  const placedChunks = new Set(placements.map((p) => p.chunk))
+  for (const c of chunks) if (!placedChunks.has(c.text)) addLog(`未配置: ${c.text}`, 'none')
+  for (const p of placements) {
+    const r = (await toTab({ type: 'apply', placement: p })) as { fieldId: string; prev: string } | null
+    const label = fields.find((f) => f.id === p.fieldId)?.label ?? p.fieldId
+    if (!r) { addLog(`書き込み失敗: ${label} ← ${p.value}`, 'none'); continue }
+    filled[p.fieldId] = p.value
+    undoStack.push({ ...r, label })
+    undoBtn.disabled = false
+    addLog(`${label} ← <b>${p.value}</b> <small>(${p.confidence.toFixed(2)})</small>`)
+  }
+}
+
+undoBtn.onclick = async () => {
+  const last = undoStack.pop()
+  if (!last) return
+  await toTab({ type: 'restore', fieldId: last.fieldId, prev: last.prev })
+  delete filled[last.fieldId]
+  addLog(`取り消し: ${last.label}`)
+  undoBtn.disabled = undoStack.length === 0
+}
+
+// Web Speech。continuous でも Chrome が勝手に onend するので listening 中は再開する（Review Focus 5）
+const SR = (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition ?? window.SpeechRecognition
+let rec: SpeechRecognition | null = null
+let finalSoFar = ''
+
+function start() {
+  rec = new SR()
+  rec.lang = 'ja-JP'; rec.continuous = true; rec.interimResults = true
+  rec.onresult = (ev) => {
+    let interim = ''
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const r = ev.results[i]
+      if (r.isFinal) { const t = r[0].transcript.trim(); if (t) void onFinal(t) }
+      else interim += r[0].transcript
+    }
+    interimEl.textContent = interim
+  }
+  rec.onerror = (ev) => { status.textContent = `音声エラー: ${ev.error}` }
+  rec.onend = () => { if (listening) start() }
+  rec.start()
+  status.textContent = '聞いています…'
+}
+
+toggle.onclick = async () => {
+  if (listening) {
+    listening = false; rec?.stop(); rec = null
+    toggle.textContent = '🎤 開始'; status.textContent = '停止'; interimEl.textContent = ''
+    return
+  }
+  try {
+    fields = (await toTab({ type: 'collect' })) as Field[]
+  } catch {
+    status.textContent = 'このページでは使えません（再読み込みしてください）'; return
+  }
+  if (fields.length === 0) { status.textContent = '入力欄が見つかりません'; return }
+  listening = true; finalSoFar = ''
+  toggle.textContent = '⏹ 停止'
+  start()
+}
+```
+
+- [ ] **Step 4: サンプルフォーム**
+
+`examples/form.html`:
+```html
+<!doctype html><meta charset="utf-8"><title>jev-speakfill サンプル</title>
+<form style="font:14px system-ui;max-width:480px;margin:24px auto;display:grid;gap:8px">
+  <label for="name">氏名</label><input id="name">
+  <label for="kana">ふりがな</label><input id="kana">
+  <label for="tel">電話番号</label><input id="tel" type="tel">
+  <label for="email">メールアドレス</label><input id="email" type="email">
+  <label for="zip">郵便番号</label><input id="zip">
+  <label for="pref">都道府県</label>
+  <select id="pref"><option>東京都</option><option>大阪府</option><option>北海道</option><option>福岡県</option></select>
+  <label for="addr">住所</label><input id="addr">
+  <fieldset><legend>性別</legend>
+    <label><input type="radio" name="sex" value="m">男性</label>
+    <label><input type="radio" name="sex" value="f">女性</label>
+  </fieldset>
+  <label><input type="checkbox" id="agree">利用規約に同意する</label>
+  <label for="pw">パスワード（除外されるべき）</label><input id="pw" type="password">
+  <label for="note">備考</label><textarea id="note"></textarea>
+  <hr>
+  <h3>商品情報（MVP 想定）</h3>
+  <label for="color">色</label><select id="color"><option>赤</option><option>青</option><option>黒</option><option>白</option></select>
+  <label for="material">素材</label><select id="material"><option>革</option><option>布</option><option>金属</option></select>
+  <label for="brand">ブランド</label><input id="brand">
+  <label for="cond">状態</label><select id="cond"><option>新品</option><option>中古</option></select>
+</form>
+```
+
+- [ ] **Step 5: ビルドして Chrome で手動確認**
+
+Run: `npm run build && npm test && npm run typecheck`
+Expected: `dist/` に background.js / content.js / sidepanel.js / options.js / *.html / manifest.json
+
+手動:
+1. `chrome://extensions` → デベロッパーモード → 「パッケージ化されていない拡張機能を読み込む」で `dist/`
+2. 拡張の「オプション」で TypeSafe API キーを保存
+3. `examples/form.html` を `file://` で開く（`chrome://extensions` でこの拡張の「ファイルの URL へのアクセスを許可する」を ON）
+4. ツールバーのアイコン → side panel → 🎤 開始 → マイク許可
+5. 「山田太郎、電話は090 1234 5678、東京都、男性、同意します」と話す
+   - 期待: 氏名/電話番号(090-1234-5678)/都道府県(東京都)/性別(男性)/同意 が入る。パスワード欄には何も入らない。ログに confidence が出る
+6. ↩ 取り消し → 直前の欄が元に戻る
+7. オプションのキーを消して話す → ログに「Jev エラー: API キー未設定 — 未配置」が出て、拡張は動き続ける
+8. 30 秒黙る → 自動再開して「聞いています…」のまま
+9. 「赤、かわ、ルイヴィトン、中古」と話す（文字起こしが「川」「皮」になっても）→ 色=赤、素材=革、ブランド=ルイヴィトン、状態=中古。ログの「Jev に送った内容」で chunk が「川」だったか確認
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/ext/sidepanel.ts src/ext/static examples/form.html
+git commit -m "feat(ext): side panel で Web Speech → segment → route → apply を配線、サンプルフォーム"
+```
+
+---
+
+### Task 8: README と実 API 精度スクリプト
+
+**Files:**
+- Create: `README.md`, `scripts/eval.ts`, `tests/fixtures/ja.json`
+
+**Interfaces:**
+- Consumes: `segment`, `route`, `callJev`
+
+- [ ] **Step 1: fixture**
+
+`tests/fixtures/ja.json`:
+```json
+{
+  "fields": [
+    { "id": "name", "label": "氏名", "kind": "text" },
+    { "id": "kana", "label": "ふりがな", "kind": "text" },
+    { "id": "tel", "label": "電話番号", "kind": "text" },
+    { "id": "email", "label": "メールアドレス", "kind": "text" },
+    { "id": "pref", "label": "都道府県", "kind": "select", "options": ["東京都", "大阪府", "北海道", "福岡県"] },
+    { "id": "sex", "label": "性別", "kind": "radio", "options": ["男性", "女性"] },
+    { "id": "color", "label": "色", "kind": "select", "options": ["赤", "青", "黒", "白"] },
+    { "id": "material", "label": "素材", "kind": "select", "options": ["革", "布", "金属"] },
+    { "id": "brand", "label": "ブランド", "kind": "text" }
+  ],
+  "cases": [
+    { "text": "山田太郎、やまだたろう", "expect": { "name": "山田太郎", "kana": "やまだたろう" } },
+    { "text": "電話は09012345678", "expect": { "tel": "090-1234-5678" } },
+    { "text": "東京都在住の女性です", "expect": { "pref": "東京都", "sex": "女性" } },
+    { "text": "メールはtaro@example.com", "expect": { "email": "taro@example.com" } },
+    { "text": "えーっと、ちょっと待ってください", "expect": {} },
+    { "text": "大阪 男性 090 9876 5432", "expect": { "pref": "大阪府", "sex": "男性", "tel": "090-9876-5432" } },
+    { "text": "赤、革、ルイヴィトン", "expect": { "color": "赤", "material": "革", "brand": "ルイヴィトン" } },
+    { "text": "赤、川、ルイヴィトン", "expect": { "color": "赤", "material": "革", "brand": "ルイヴィトン" } },
+    { "text": "青、皮、シャネル", "expect": { "color": "青", "material": "革", "brand": "シャネル" } },
+    { "text": "黒、金属、エルメス", "expect": { "color": "黒", "material": "金属", "brand": "エルメス" } }
+  ]
+}
+```
+
+- [ ] **Step 2: 評価スクリプト**
+
+`scripts/eval.ts`:
+```ts
+// 実 API で fixture を流し、欄ごとの一致率を出す。CI では走らせない。
+// 実行: TYPESAFE_API_KEY=... npx tsx scripts/eval.ts  （tsx が無ければ `node --experimental-strip-types`）
+import { readFileSync } from 'node:fs'
+import { segment } from '../src/core/segment'
+import { route } from '../src/core/route'
+import { callJev } from '../src/ext/jevClient'
+import type { Field } from '../src/core/types'
+
+const key = process.env.TYPESAFE_API_KEY ?? ''
+const fx = JSON.parse(readFileSync('tests/fixtures/ja.json', 'utf8')) as {
+  fields: Field[]; cases: { text: string; expect: Record<string, string> }[]
+}
+let hit = 0, total = 0
+for (const c of fx.cases) {
+  const chunks = segment(c.text, true, fx.fields)
+  const got = Object.fromEntries((await route(fx.fields, chunks, {}, (s, q) => callJev(key, s, q))).map((p) => [p.fieldId, p.value]))
+  const keys = new Set([...Object.keys(c.expect), ...Object.keys(got)])
+  for (const k of keys) { total++; if (c.expect[k] === got[k]) hit++ }
+  console.log(JSON.stringify({ text: c.text, expect: c.expect, got }))
+}
+console.log(`一致 ${hit}/${total}`)
+```
+
+- [ ] **Step 3: README**
+
+`README.md`:
+```md
+# jev-speakfill
+
+話すだけで、画面に見えている日本語フォームの正しい欄に入力する Chrome 拡張。欄名を言う必要はない（言ってもいい）。
+ルーティングは [TypeSafe Jev](https://typesafe.ai)：候補の欄から**選ぶだけで、値は生成しない**。値は音声認識の文字列がそのまま入る。
+
+## 使い方
+1. `npm install && npm run build`
+2. `chrome://extensions` → デベロッパーモード → `dist/` を読み込む
+3. オプションで TypeSafe API キーを保存（BYOK）
+4. フォームのあるページで side panel を開き 🎤
+
+## データの行き先（自己責任で使うこと）
+- 音声: Chrome の Web Speech API → Google
+- 欄のラベル・種別・選択肢と、発話テキスト: TypeSafe API
+- ページ本文・URL は送らない。password / クレジットカード / ワンタイムコード欄は対象外
+- 何を送ったかは side panel の「Jev に送った内容」で見られる
+
+## 構成
+- `src/core/` — DOM も mic も知らない。`segment`（chunk 化）と `route`（Jev で欄選択）。React / iOS へそのまま移植する部分
+- `src/ext/` — MV3 ホスト（side panel / content script / service worker）
+
+## 開発
+`npm test` / `npm run typecheck` / `TYPESAFE_API_KEY=... npx tsx scripts/eval.ts`
+```
+
+- [ ] **Step 4: 確認と Commit**
+
+Run: `npm test && npm run typecheck`（eval は手元でキーがあれば実行し、一致率をコミットメッセージに書く）
+
+```bash
+git add README.md scripts/eval.ts tests/fixtures/ja.json
+git commit -m "docs: README、実 API 評価スクリプトと日本語 fixture"
+```
