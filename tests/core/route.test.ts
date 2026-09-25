@@ -63,9 +63,11 @@ test('chunk が空なら ask を呼ばない', async () => {
   expect(called).toBe(0)
 })
 
-test('同一発話で隣接 chunk が同じ text 欄に向いたら連結する（「山田 太郎」）', async () => {
+test('同一発話で隣接 chunk が同じ text 欄に向いたら連結する（「山田 太郎」は空白、glue は空白なし）', async () => {
   const r = await route(fields, [{ text: '山田' }, { text: '太郎' }], {}, fakeAsk({ c0: answer('name'), c1: answer('name') }))
   expect(r).toEqual([{ fieldId: 'name', value: '山田 太郎', chunk: '山田 太郎', confidence: 0.9 }])
+  const g = await route(fields, [{ text: '山田' }, { text: '太郎', glue: true }], {}, fakeAsk({ c0: answer('name'), c1: answer('name') }))
+  expect(g).toEqual([{ fieldId: 'name', value: '山田太郎', chunk: '山田太郎', confidence: 0.9 }])
 })
 
 test('2 往復: 1 回目は欄選択だけ、2 回目は選ばれた選択肢欄の option 質問だけ', async () => {

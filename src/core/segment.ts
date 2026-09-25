@@ -49,6 +49,42 @@ function mergeDigits(parts: string[]): string[] {
   return out
 }
 
+// 無区切りの発話（「赤革ルイヴィトン」「東京都在住の女性です」）を ICU の単語分割で割る。依存なし、Chrome/Node 内蔵
+const PARTICLES = new Set(['の', 'は', 'が', 'を', 'に', 'で', 'と', 'も', 'へ', 'や', 'から', 'まで', 'です', 'ます', 'だ', 'ね', 'よ', 'ください'])
+const KATAKANA = /^[ァ-ヺー]+$/
+const HIRAGANA = /^[ぁ-ゖー]+$/
+const JAPANESE_ONLY = /^[ぁ-ゖァ-ヺー一-龯々〆]+$/   // 英数字・@ を含む chunk（メール等）は割らない
+const segmenter = typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter('ja', { granularity: 'word' }) : null
+
+const KANJI = /^[一-龯々〆]+$/
+
+// ICU は割りすぎるので、隣接（間に助詞を落としていない）なら戻す:
+// カタカナ+カタカナ（ブランド名）、ひらがな+ひらがな（読み）、漢字+ひらがな（姓+名の読み）
+function shouldMerge(prev: string, next: string): boolean {
+  if (KATAKANA.test(prev) && KATAKANA.test(next)) return true
+  if (HIRAGANA.test(prev) && HIRAGANA.test(next)) return true
+  if (KANJI.test(prev) && HIRAGANA.test(next)) return true
+  return false
+}
+
+function words(text: string): string[] {
+  if (!segmenter) return [text]
+  const out: string[] = []
+  let adjacent = false   // 直前の token と間に落とした語がないか
+  for (const s of segmenter.segment(text)) {
+    if (!s.isWordLike || PARTICLES.has(s.segment)) { adjacent = false; continue }
+    const last = out[out.length - 1]
+    if (adjacent && last !== undefined && shouldMerge(last, s.segment)) out[out.length - 1] = last + s.segment
+    else out.push(s.segment)
+    adjacent = true
+  }
+  return out.length ? out : [text]
+}
+
+function isLabelWord(text: string, fields: Field[]): boolean {
+  return fields.some((f) => f.label === text) || SYNONYMS.some(([spoken]) => spoken === text)
+}
+
 export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[] {
   if (!isFinal) return []
   const ps = particleSplitter(fields)
@@ -62,4 +98,9 @@ export function segment(text: string, isFinal: boolean, fields: Field[]): Chunk[
     .filter((part) => part.length > 0)
     .map((part) => stripHint(part, fields))
     .filter((c) => c.text.length > 0)
+    .flatMap((c) => {
+      // 欄名だけ・数字はそのまま。それ以外は単語に割り、2 語目以降に glue を付ける
+      if (isLabelWord(c.text, fields) || !JAPANESE_ONLY.test(c.text) || HIRAGANA.test(c.text)) return [c]
+      return words(c.text).map((w, i) => (i === 0 ? { ...c, text: w } : { ...c, text: w, glue: true }))
+    })
 }

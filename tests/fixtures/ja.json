@@ -1,26 +1,180 @@
 {
   "fields": [
-    { "id": "name", "label": "氏名", "kind": "text" },
-    { "id": "tel", "label": "電話番号", "kind": "text" },
-    { "id": "email", "label": "メールアドレス", "kind": "text" },
-    { "id": "pref", "label": "都道府県", "kind": "select", "options": ["東京都", "大阪府", "北海道", "福岡県"] },
-    { "id": "sex", "label": "性別", "kind": "radio", "options": ["男性", "女性"] },
-    { "id": "color", "label": "色", "kind": "select", "options": ["赤", "青", "黒", "白"] },
-    { "id": "material", "label": "素材", "kind": "select", "options": ["革", "布", "金属"] },
-    { "id": "brand", "label": "ブランド", "kind": "text" }
+    {
+      "id": "name",
+      "label": "氏名",
+      "kind": "text"
+    },
+    {
+      "id": "tel",
+      "label": "電話番号",
+      "kind": "text"
+    },
+    {
+      "id": "email",
+      "label": "メールアドレス",
+      "kind": "text"
+    },
+    {
+      "id": "pref",
+      "label": "都道府県",
+      "kind": "select",
+      "options": [
+        "東京都",
+        "大阪府",
+        "北海道",
+        "福岡県"
+      ]
+    },
+    {
+      "id": "sex",
+      "label": "性別",
+      "kind": "radio",
+      "options": [
+        "男性",
+        "女性"
+      ]
+    },
+    {
+      "id": "color",
+      "label": "色",
+      "kind": "select",
+      "options": [
+        "赤",
+        "青",
+        "黒",
+        "白"
+      ]
+    },
+    {
+      "id": "material",
+      "label": "素材",
+      "kind": "select",
+      "options": [
+        "革",
+        "布",
+        "金属"
+      ]
+    },
+    {
+      "id": "brand",
+      "label": "ブランド",
+      "kind": "text"
+    }
   ],
   "cases": [
-    { "text": "赤、革、ルイヴィトン", "expect": { "color": "赤", "material": "革", "brand": "ルイヴィトン" } },
-    { "text": "赤、川、ルイヴィトン", "expect": { "color": "赤", "material": "革", "brand": "ルイヴィトン" } },
-    { "text": "青、皮、シャネル", "expect": { "color": "青", "material": "革", "brand": "シャネル" } },
-    { "text": "黒、金属、エルメス", "expect": { "color": "黒", "material": "金属", "brand": "エルメス" } },
-    { "text": "佐藤あかね", "expect": { "name": "佐藤あかね" } },
-    { "text": "電話は09012345678", "expect": { "tel": "090-1234-5678" } },
-    { "text": "電話は090 1234 5678", "expect": { "tel": "090-1234-5678" } },
-    { "text": "山田 太郎", "expect": { "name": "山田 太郎" } },
-    { "text": "東京都在住の女性です", "expect": { "pref": "東京都", "sex": "女性" } },
-    { "text": "メールはtaro@example.com", "expect": { "email": "taro@example.com" } },
-    { "text": "えーっと、ちょっと待ってください", "expect": {} },
-    { "text": "大阪 男性 090 9876 5432", "expect": { "pref": "大阪府", "sex": "男性", "tel": "090-9876-5432" } }
+    {
+      "text": "赤、革、ルイヴィトン",
+      "expect": {
+        "color": "赤",
+        "material": "革",
+        "brand": "ルイヴィトン"
+      }
+    },
+    {
+      "text": "赤、川、ルイヴィトン",
+      "expect": {
+        "color": "赤",
+        "material": "革",
+        "brand": "ルイヴィトン"
+      }
+    },
+    {
+      "text": "青、皮、シャネル",
+      "expect": {
+        "color": "青",
+        "material": "革",
+        "brand": "シャネル"
+      }
+    },
+    {
+      "text": "黒、金属、エルメス",
+      "expect": {
+        "color": "黒",
+        "material": "金属",
+        "brand": "エルメス"
+      }
+    },
+    {
+      "text": "佐藤あかね",
+      "expect": {
+        "name": "佐藤あかね"
+      }
+    },
+    {
+      "text": "電話は09012345678",
+      "expect": {
+        "tel": "090-1234-5678"
+      }
+    },
+    {
+      "text": "電話は090 1234 5678",
+      "expect": {
+        "tel": "090-1234-5678"
+      }
+    },
+    {
+      "text": "山田 太郎",
+      "expect": {
+        "name": "山田 太郎"
+      }
+    },
+    {
+      "text": "東京都在住の女性です",
+      "expect": {
+        "pref": "東京都",
+        "sex": "女性"
+      }
+    },
+    {
+      "text": "メールはtaro@example.com",
+      "expect": {
+        "email": "taro@example.com"
+      }
+    },
+    {
+      "text": "えーっと、ちょっと待ってください",
+      "expect": {}
+    },
+    {
+      "text": "大阪 男性 090 9876 5432",
+      "expect": {
+        "pref": "大阪府",
+        "sex": "男性",
+        "tel": "090-9876-5432"
+      }
+    },
+    {
+      "text": "赤革ルイヴィトン",
+      "expect": {
+        "color": "赤",
+        "material": "革",
+        "brand": "ルイヴィトン"
+      }
+    },
+    {
+      "text": "黒金属エルメス中古",
+      "expect": {
+        "color": "黒",
+        "material": "金属",
+        "brand": "エルメス"
+      }
+    },
+    {
+      "text": "青い皮のシャネルのバッグ",
+      "expect": {
+        "color": "青",
+        "material": "革",
+        "brand": "シャネル"
+      }
+    },
+    {
+      "text": "大阪の男性で佐藤あかねです",
+      "expect": {
+        "pref": "大阪府",
+        "sex": "男性",
+        "name": "佐藤あかね"
+      }
+    }
   ]
 }
