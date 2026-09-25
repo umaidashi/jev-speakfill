@@ -49,3 +49,9 @@ test('空は捨てるが 1 文字（赤・革）は残す', () => {
   expect(segment('、。 、', true, fields)).toEqual([])
   expect(segment('赤', true, fields)).toEqual([{ text: '赤' }])
 })
+
+test('空白区切りの数字は 1 つの chunk に結合する（電話番号の読み上げ）', () => {
+  expect(segment('大阪 男性 090 9876 5432', true, fields)).toEqual([
+    { text: '大阪' }, { text: '男性' }, { text: '090 9876 5432' },
+  ])
+})
