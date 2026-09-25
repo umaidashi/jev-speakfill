@@ -12,13 +12,22 @@ const pad = (n: number) => String(n).padStart(2, '0')
 const JST = 9 * 60 * 60 * 1000
 const jstDate = (now: number, offsetDays = 0) => new Date(now + JST + offsetDays * 86400000)   // getUTC* で JST の日付を読む
 
+const YEAR_WORDS: Record<string, number> = { 一昨年: -2, 去年: -1, 昨年: -1, 今年: 0, 来年: 1, 再来年: 2 }
+
+// 「来年の8月6日」→ 年のオフセットと残り。「の」は落とす
+function splitYearWord(t: string, now: number): { year: number | null; rest: string } {
+  const m = /^(一昨年|去年|昨年|今年|来年|再来年)の?(.*)$/.exec(t)
+  if (!m) return { year: null, rest: t }
+  return { year: jstDate(now).getUTCFullYear() + YEAR_WORDS[m[1]], rest: m[2] }
+}
+
 function parseDate(text: string, now: number): { y: number; m: number; d: number } | null {
-  const t = toHalf(text)
-  const rel = { 今日: 0, 明日: 1, 昨日: -1, 明後日: 2 }[t as '今日']
+  const rel = { 今日: 0, 明日: 1, 昨日: -1, 明後日: 2 }[toHalf(text) as '今日']
   if (rel !== undefined) { const j = jstDate(now, rel); return { y: j.getUTCFullYear(), m: j.getUTCMonth() + 1, d: j.getUTCDate() } }
-  const m = /^(?:(\d{4})[年/])?(\d{1,2})[月/](\d{1,2})日?$/.exec(t)
+  const { year, rest } = splitYearWord(toHalf(text), now)
+  const m = /^(?:(\d{4})[年/])?(\d{1,2})[月/](\d{1,2})日?$/.exec(rest)
   if (!m) return null
-  const y = m[1] ? Number(m[1]) : jstDate(now).getUTCFullYear()
+  const y = m[1] ? Number(m[1]) : year ?? jstDate(now).getUTCFullYear()
   const r = { y, m: Number(m[2]), d: Number(m[3]) }
   const check = new Date(Date.UTC(r.y, r.m - 1, r.d))
   return check.getUTCMonth() + 1 === r.m && check.getUTCDate() === r.d ? r : null
@@ -68,9 +77,10 @@ export function coerce(text: string, field: Field, now: number): Coerced {
       const v = `${fmtDate(d)}T${fmtTime(tm)}`; return inRange(v, c, (a, b) => a.localeCompare(b)) ? ok(v) : invalid(v)
     }
     case 'month': {
-      const m = /^(?:(\d{4})[年/])?(\d{1,2})月?$/.exec(toHalf(t)); if (!m) return invalid(t)
+      const { year, rest } = splitYearWord(toHalf(t), now)
+      const m = /^(?:(\d{4})[年/])?(\d{1,2})月?$/.exec(rest); if (!m) return invalid(t)
       const mo = Number(m[2]); if (mo < 1 || mo > 12) return invalid(t)
-      return ok(`${m[1] ?? jstDate(now).getUTCFullYear()}-${pad(mo)}`)
+      return ok(`${m[1] ?? year ?? jstDate(now).getUTCFullYear()}-${pad(mo)}`)
     }
     case 'number': case 'range': {
       const s = toHalf(t).replace(/^マイナス/, '-').replace(/[,，]/g, '')

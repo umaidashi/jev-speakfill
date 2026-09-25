@@ -37,5 +37,5 @@ test('閾値', () => expect(THRESHOLD).toBe(0.35))
 test('type 付きの欄は criteria に type を書く（Jev が日付欄と分かるように）', () => {
   const typed: Field[] = [{ id: 'buy', label: '購入日', kind: 'text', type: 'date' }]
   const { questions } = buildQuestions(typed, [{ text: '9月25日' }], {})
-  expect(questions.c0.criteria.buy).toBe('購入日 (text: date)')
+  expect(questions.c0.criteria.buy).toBe('購入日 (text: date — 「9月25日」「今日」「来年の8月6日」のような日付)')
 })
