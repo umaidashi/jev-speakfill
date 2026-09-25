@@ -2,10 +2,13 @@
 <style>
   body{font:14px system-ui;margin:12px} button{font-size:16px;padding:6px 12px}
   #interim{color:#888;min-height:1.5em} #log{margin-top:8px} .item{border-bottom:1px solid #eee;padding:4px 0}
+  #transcript .t{color:#333;padding:2px 0;border-bottom:1px dotted #ddd} #transcript .t small{color:#999;margin-right:6px}
   .none{color:#a00} .err{color:#a00;font-weight:bold} details{margin-top:8px} pre{font-size:11px;white-space:pre-wrap}
 </style>
 <button id="toggle">🎤 開始</button> <button id="undo" disabled>↩ 取り消し</button> <span id="status"></span>
 <div id="interim"></div>
-<div id="log"></div>
-<details><summary>Jev に送った内容（直近）</summary><pre id="sent"></pre></details>
+<details open><summary>文字起こし（そのまま）</summary><div id="transcript"></div></details>
+<details open><summary>配置</summary><div id="log"></div></details>
+<details><summary>直近の発話のトレース（文字起こし → chunk → Jev → 検証）</summary><pre id="sent"></pre></details>
+<div style="margin-top:8px"><button id="download">📥 ログを保存 (.jsonl)</button> <button id="clear">🗑 ログを消去</button> <span id="count"></span></div>
 <script type="module" src="sidepanel.js"></script>

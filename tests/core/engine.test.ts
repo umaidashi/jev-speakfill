@@ -19,7 +19,7 @@ function fakeHost(script: Record<string, Partial<RouteResult>>) {
     route: async (input) => {
       inputs.push(input)
       const r = script[input.text] ?? {}
-      return { apply: [], pending: [], rejected: [], unplaced: [], ctx: input.ctx, ...r }
+      return { apply: [], pending: [], rejected: [], unplaced: [], ctx: input.ctx, ...r } as RouteResult
     },
   }
   return { host, values, inputs }
@@ -84,7 +84,7 @@ test('route が失敗したら error イベントで止まらない', async () =
 test('final が連続しても直列に処理する', async () => {
   const order: string[] = []
   const { host } = fakeHost({})
-  host.route = async (i) => { await new Promise((r) => setTimeout(r, i.text === 'a' ? 20 : 0)); order.push(i.text); return { apply: [], pending: [], rejected: [], unplaced: [], ctx: i.ctx } }
+  host.route = async (i) => { await new Promise((r) => setTimeout(r, i.text === 'a' ? 20 : 0)); order.push(i.text); return { apply: [], pending: [], rejected: [], unplaced: [], ctx: i.ctx } as unknown as RouteResult }
   const e = new Engine(host, () => {})
   await Promise.all([e.final('a'), e.final('b')])
   expect(order).toEqual(['a', 'b'])

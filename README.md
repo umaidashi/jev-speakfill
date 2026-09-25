@@ -63,6 +63,11 @@ Jev に渡すのは欄の `id/label/kind/options`、chunk と `hint`、`filled`�
 - Jev 側: text 欄の値の妥当性は判断していない（雑談が備考に入る可能性。`none` を返すことが多いが保証はない）
 - 境界: 「文字起こしが正しいか」は誰も見ていない。選択肢欄だけ Jev が読みで補正できる
 
+### トレースログ
+発話 1 回ごとに、文字起こし → chunk → 文脈 → Jev の質問と答え（往復ごと、所要 ms）→ 採否 → 検証結果 を `Trace` として残す（`core/pipeline.ts`）。
+拡張は side panel の 📥 で `.jsonl`（1 行 1 発話）として保存（`chrome.storage.local` に直近 500 件）、web widget は `localStorage` + 📥。
+side panel には文字起こしそのもの（変換前）も時刻付きで別枠に表示する。「ブラック → 黒」のような選択肢の表記揺れ補正は `jev[1].answers` に、形式不正は `gate.rejected` に残る。
+
 ### 具体的な入力と結果
 `npm run eval` が `tests/fixtures/ja.json` の発話を実 API に流し、①〜④ の中間結果を [docs/eval/latest.md](docs/eval/latest.md) に書く（どの chunk が、どの欄に、どの confidence で、どの選択肢になったか）。ケースを足すときは fixture に `text` と `expect` を追加する。拡張の side panel でも「Jev に送った内容」で直近リクエストの state/questions を見られる。
 

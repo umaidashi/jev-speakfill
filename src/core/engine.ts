@@ -1,5 +1,5 @@
 import type { Context } from './context'
-import type { RouteInput, RouteResult } from './pipeline'
+import type { RouteInput, RouteResult, Trace } from './pipeline'
 import type { Field, Placement } from './types'
 
 // ホストが差し込む 4 関数。DOM / chrome API / HTTP はすべてこの外
@@ -19,6 +19,7 @@ export type EngineEvent =
   | { type: 'failed'; label: string; value: string }    // 欄は決まったが書けなかった
   | { type: 'undone'; label: string }
   | { type: 'error'; message: string; text: string }
+  | { type: 'trace'; trace: Trace }   // 文字起こし→配置の全段階（解析用）
 
 // 発話 → 配置の状態機械。filled / ctx / Undo を持つ。final() は直列に処理する
 export class Engine {
@@ -51,6 +52,7 @@ export class Engine {
       return
     }
     this.ctx = r.ctx
+    if (r.trace) this.emit({ type: 'trace', trace: r.trace })
     if (r.hint) this.emit({ type: 'waiting', hint: r.hint })
     for (const t of r.unplaced) this.emit({ type: 'unplaced', text: t })
     for (const p of r.pending) this.emit({ type: 'pending', label: this.label(p.fieldId), value: p.value })

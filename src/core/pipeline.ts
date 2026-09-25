@@ -1,7 +1,7 @@
 import { segment } from './segment'
 import { applyContext, gate, type Context } from './context'
 import { route } from './route'
-import type { Field, JevAsk, Placement } from './types'
+import type { Answer, Chunk, Field, JevAsk, Placement, Question } from './types'
 
 // 発話 1 回分を「配置」に変える全段階。ホスト（拡張 / web / サーバ）はこれを呼ぶだけ
 export type RouteInput = {
@@ -18,13 +18,39 @@ export type RouteResult = {
   unplaced: string[]                // どの欄にも置けなかった chunk
   hint?: string                     // 欄名だけが発話された
   ctx: Context
+  trace: Trace
+}
+
+// 文字起こしから配置までの全段階。解析用にそのまま保存できる JSON
+export type Trace = {
+  at: number
+  text: string
+  filled: Record<string, string>
+  ctxBefore: Context
+  segment: Chunk[]
+  context: { chunks: Chunk[]; direct: Placement[] }
+  jev: { state: unknown; questions: Record<string, Question>; answers: Record<string, Answer>; ms: number }[]
+  routed: Placement[]               // Jev の答えを採否した直後（gate 前）
+  gate: { apply: Placement[]; pending: Placement[]; rejected: Placement[] }
 }
 
 export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteResult> {
   const ctx: Context = { ...input.ctx }
-  const { chunks, direct } = applyContext(segment(input.text, true, input.fields), input.fields, ctx, input.now)
-  const routed = chunks.length ? await route(input.fields, chunks, input.filled, ask) : []
+  const jev: Trace['jev'] = []
+  const askTraced: JevAsk = async (state, questions) => {
+    const t0 = Date.now()
+    const answers = await ask(state, questions)
+    jev.push({ state, questions, answers, ms: Date.now() - t0 })
+    return answers
+  }
+  const seg = segment(input.text, true, input.fields)
+  const { chunks, direct } = applyContext(seg, input.fields, ctx, input.now)
+  const routed = chunks.length ? await route(input.fields, chunks, input.filled, askTraced) : []
   const unplaced = chunks.filter((c) => !routed.some((p) => p.chunk.includes(c.text))).map((c) => c.text)
   const g = gate([...direct, ...routed], input.fields, ctx, input.now)
-  return { ...g, unplaced, hint: chunks.length === 0 && direct.length === 0 ? ctx.hint : undefined, ctx }
+  const trace: Trace = {
+    at: input.now, text: input.text, filled: { ...input.filled }, ctxBefore: { ...input.ctx },
+    segment: seg, context: { chunks, direct }, jev, routed, gate: g,
+  }
+  return { ...g, unplaced, hint: chunks.length === 0 && direct.length === 0 ? ctx.hint : undefined, ctx, trace }
 }

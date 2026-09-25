@@ -34,3 +34,19 @@ test('未配置の chunk を unplaced に返す', async () => {
   expect(r.apply).toEqual([])
   expect(r.unplaced).toEqual(['えーと'])
 })
+
+test('trace に文字起こしから配置までの全段階が残る', async () => {
+  const r = await pipeline({ fields, text: '赤、080', filled: { name: '田中' }, ctx: fresh(), now: 123 }, ask)
+  const t = r.trace
+  expect(t.text).toBe('赤、080')
+  expect(t.at).toBe(123)
+  expect(t.filled).toEqual({ name: '田中' })
+  expect(t.segment).toEqual([{ text: '赤' }, { text: '080' }])
+  expect(t.context.chunks).toEqual([{ text: '赤' }, { text: '080' }])
+  expect(t.jev).toHaveLength(2)                                   // 欄選択 + 選択肢
+  expect(Object.keys(t.jev[0].questions)).toEqual(['c0', 'c1'])
+  expect(t.jev[0].answers.c0.choice).toBe('color')
+  expect(t.jev[1].answers.c0_color.choice).toBe('赤')
+  expect(t.gate.apply.map((p) => p.value)).toEqual(['赤'])
+  expect(t.gate.pending.map((p) => p.value)).toEqual(['080'])
+})

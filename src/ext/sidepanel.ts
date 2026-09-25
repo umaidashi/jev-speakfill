@@ -1,11 +1,20 @@
 import { Engine, type EngineEvent, type Host } from '../core/engine'
-import { pipeline } from '../core/pipeline'
+import { pipeline, type Trace } from '../core/pipeline'
 import { startSpeech, type SpeechHandle } from '../web/speech'
 import type { Field, JevAsk } from '../core/types'
+import { TraceLog } from '../web/tracelog'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const toggle = $<HTMLButtonElement>('toggle'), undoBtn = $<HTMLButtonElement>('undo')
-const status = $('status'), interimEl = $('interim'), log = $('log'), sent = $<HTMLPreElement>('sent')
+const status = $('status'), interimEl = $('interim'), log = $('log'), sent = $<HTMLPreElement>('sent'), transcript = $('transcript')
+
+// 文字起こしは変換とは別に、そのまま残す
+function addTranscript(text: string) {
+  const div = document.createElement('div'); div.className = 't'
+  const time = document.createElement('small'); time.textContent = new Date().toLocaleTimeString('ja-JP', { hour12: false })
+  div.append(time, text)
+  transcript.prepend(div)
+}
 
 let tabId: number | null = null   // 🎤 開始時に束縛。途中でタブを切り替えても別タブに書かない
 async function toTab(msg: unknown) {
@@ -25,7 +34,6 @@ async function toTab(msg: unknown) {
 
 // Jev は service worker 経由（API キーはそこにしか無い）
 const ask: JevAsk = async (state, questions) => {
-  sent.textContent = JSON.stringify({ state, questions }, null, 1)
   const res = await chrome.runtime.sendMessage({ type: 'ask', state, questions })
   if (!res?.ok) throw new Error(res?.error ?? 'unknown')
   return res.answers
@@ -48,8 +56,22 @@ function addLog(text: string, cls = '', strong?: string, small?: string) {
   log.prepend(div)
 }
 
+// 文字起こし → 配置の全段階を chrome.storage.local に残す（解析用）。📥 で .jsonl として保存
+const traces = new TraceLog({
+  load: async () => ((await chrome.storage.local.get('traces')).traces ?? []) as Trace[],
+  save: async (t) => { await chrome.storage.local.set({ traces: t }) },
+})
+const count = $('count'), downloadBtn = $<HTMLButtonElement>('download'), clearBtn = $<HTMLButtonElement>('clear')
+void traces.size().then((n) => { count.textContent = `${n} 件` })
+downloadBtn.onclick = () => traces.download()
+clearBtn.onclick = async () => { await traces.clear(); count.textContent = '0 件' }
+
 function onEvent(ev: EngineEvent) {
   switch (ev.type) {
+    case 'trace':
+      sent.textContent = JSON.stringify(ev.trace, null, 1)
+      void traces.push(ev.trace).then((n) => { count.textContent = `${n} 件` })
+      break
     case 'placed': addLog(`${ev.label} ← `, '', ev.value, `(${ev.confidence.toFixed(2)})`); break
     case 'pending': addLog(`${ev.label}: ${ev.value}（桁が足りません。続きを待っています）`, 'none'); break
     case 'rejected': addLog(`${ev.label}: ${ev.value}（形式不正のため未入力）`, 'err'); break
@@ -84,7 +106,7 @@ toggle.onclick = async () => {
   if (fields.length === 0) { status.textContent = '入力欄が見つかりません'; return }
   toggle.textContent = '⏹ 停止'
   speech = startSpeech({
-    onFinal: (t) => { void engine.final(t) },
+    onFinal: (t) => { addTranscript(t); void engine.final(t) },
     onInterim: (t) => { interimEl.textContent = t },
     onStatus: (m) => { status.textContent = m },
     onFatal: (err) => {
