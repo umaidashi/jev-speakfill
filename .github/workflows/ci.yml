@@ -1,0 +1,19 @@
+# push / PR ごとに テスト・型検査・ビルド。実 API 評価（npm run eval）はキーが要るので CI では回さない
+name: ci
+on:
+  push:
+    branches: [main, feat/**]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build        # 拡張・widget・サーバ
+      - run: npm run build:lib    # npm パッケージ
+      - run: npm pack --dry-run   # 同梱物の確認（dist/lib, README, LICENSE のみ）

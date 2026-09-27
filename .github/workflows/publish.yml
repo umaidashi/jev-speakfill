@@ -1,0 +1,26 @@
+# v* タグを push したら npm に公開する（来歴 provenance 付き）。
+# 事前準備: npmjs.com で Automation トークンを作り、リポジトリの Secrets に NPM_TOKEN として登録。
+# タグは package.json の version と一致していること（例: version 0.1.0 → git tag v0.1.0）。
+name: publish
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+  id-token: write   # provenance に必要
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, registry-url: https://registry.npmjs.org }
+      - run: npm ci
+      - name: タグと package.json の version が一致するか
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(node -p "require('./package.json').version")"
+          [ "$tag" = "$ver" ] || { echo "tag v$tag != package.json $ver"; exit 1; }
+      - run: npm publish --provenance --access public   # prepublishOnly が test と build:lib を回す
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
