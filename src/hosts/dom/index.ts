@@ -109,10 +109,10 @@ function setNative(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElemen
   el.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
-// React はインスタンスに checked の tracker を定義するので、prototype の setter で書かないと onChange が発火しない
-const checkedSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked')!.set!
+// React はインスタンスに checked の tracker を定義するので、prototype の setter で書かないと onChange が発火しない。
+// module 評価時に DOM を触らない（Node / SSR で import しただけで落ちないように）
 function setChecked(el: HTMLInputElement, checked: boolean) {
-  checkedSetter.call(el, checked)
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked')!.set!.call(el, checked)
   el.dispatchEvent(new Event('change', { bubbles: true }))
 }
 

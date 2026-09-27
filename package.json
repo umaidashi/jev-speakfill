@@ -1,6 +1,6 @@
 {
   "name": "jev-speakfill",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "話すだけで日本語フォームの正しい欄に入力する。ルーティングは TypeSafe Jev（選ぶだけ、生成しない）",
   "license": "MIT",
   "repository": {
