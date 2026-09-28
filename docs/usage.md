@@ -119,6 +119,14 @@ startSpeech({ onFinal: (t) => engine.final(t), onInterim: () => {}, onStatus: ()
 
 `.env` は `.env.example` をコピー（eval とサーバ専用）。
 
+## リリース手順（npm）
+1. 作業ブランチ（`feat/…`）で変更し、PR を `main` へ。`main` は保護されていて直接 push できない。CI（`test`）が通ると rebase マージできる
+2. `main` を取り込んだ状態で `npm version patch`（または `minor`）。`package.json` の version が上がり、`v0.1.2` のようなタグが打たれる
+3. `git push --follow-tags`。`v*` タグの push で `publish.yml` が走り、`npm publish --provenance`
+   - タグが `main` 上のコミットでない、または `package.json` の version と一致しない場合は止まる
+   - `v*` タグは ruleset で削除・上書き不可
+4. 公開直後に自分で試すときは `npm install jev-speakfill --min-release-age=0 --prefer-online`
+
 ## 権限とデータ（自己責任で使うこと）
 - 拡張: `host_permissions: <all_urls>` + `scripting`（どのページのフォームにも書くため。「すべてのサイトのデータの読み取りと変更」の警告が出る）、`sidePanel`、`storage`
 - 音声: Chrome の Web Speech API → Google
