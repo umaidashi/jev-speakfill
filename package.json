@@ -34,7 +34,8 @@
     "./web": {
       "types": "./dist/lib/hosts/web/index.d.ts",
       "import": "./dist/lib/hosts/web/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist/lib",
