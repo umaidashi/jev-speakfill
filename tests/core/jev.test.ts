@@ -11,7 +11,7 @@ const fields: Field[] = [
 
 test('chunk ごとに Choice を1問、criteria は欄ID + none', () => {
   const { questions } = buildQuestions(fields, [{ text: '山田太郎' }, { text: '東京', hint: '都道府県' }], {})
-  expect(Object.keys(questions.c0.criteria)).toEqual(['name', 'pref', 'none'])
+  expect(Object.keys(questions.c0.criteria)).toEqual(['name', 'pref', 'label:name', 'label:pref', 'none'])   // 短い chunk には「欄名として」の選択肢も
   expect(questions.c1.instructions).toContain('都道府県')      // hint が instructions に入る
 })
 

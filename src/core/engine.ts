@@ -35,20 +35,20 @@ export class Engine {
 
   get canUndo() { return this.undoStack.length > 0 }
 
-  final(text: string): Promise<void> {
-    this.queue = this.queue.then(() => this.process(text))
+  final(text: string, alternatives?: string[]): Promise<void> {
+    this.queue = this.queue.then(() => this.process(text, alternatives))
     return this.queue
   }
 
   private label(fieldId: string) { return this.fields.find((f) => f.id === fieldId)?.label ?? fieldId }
 
-  private async process(text: string) {
+  private async process(text: string, alternatives?: string[]) {
     let r: RouteResult
     try {
       this.fields = await this.host.fields()   // SPA 対策: 発話ごとに取り直す（id は要素ごとに安定）
       const alive = new Set(this.fields.map((f) => f.id))
       this.filled = Object.fromEntries(Object.entries(this.filled).filter(([id]) => alive.has(id)))
-      r = await this.host.route({ fields: this.fields, text, filled: this.filled, ctx: this.ctx, now: this.now(), recent: [...this.recent], config: this.config })
+      r = await this.host.route({ fields: this.fields, text, alternatives, filled: this.filled, ctx: this.ctx, now: this.now(), recent: [...this.recent], config: this.config })
       this.recent = [...this.recent, text].slice(-(this.config?.recentCount ?? DEFAULT_CONFIG.recentCount))
     } catch (e) {
       this.emit({ type: 'error', message: e instanceof Error ? e.message : String(e), text })

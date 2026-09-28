@@ -117,3 +117,51 @@ test('optionThreshold 未満の選択肢は採らない', async () => {
   const r = await route(fields, [{ text: '東京' }], {}, fakeAsk({ c0: answer('pref'), c0_pref: answer('東京都', 0.5) }), [], cfg)
   expect(r).toEqual([])
 })
+
+test('hint がある chunk は、Jev が none / 低 confidence でも hint の欄に入れる（話者が欄名を言ったなら信じる）', async () => {
+  const f: Field[] = [...fields, { id: 'note', label: '備考', kind: 'text' }]
+  const r = await route(f, [{ text: '吾輩は猫である', hint: '備考' }], {}, fakeAsk({ c0: { type: 'choice', choice: 'none', probabilities: { none: 0.6, note: 0.3 }, confidence: 0.6 } }))
+  expect(r).toEqual([{ fieldId: 'note', value: '吾輩は猫である', chunk: '吾輩は猫である', confidence: 0.3 }])
+})
+
+describe('欄名の判定を Jev に任せる（同義語の登録なしで LINE→ライン、尾行→備考）', () => {
+  const f: Field[] = [
+    { id: 'model', label: 'ライン・モデル名', kind: 'text' },
+    { id: 'note', label: '備考', kind: 'text' },
+    { id: 'color', label: '色', kind: 'select', options: ['黒', '赤'] },
+  ]
+  test('criteria に「欄名として言っている」選択肢（label:<id>）が入る（短い非数値 chunk のみ）', async () => {
+    let seen: string[] = []
+    await route(f, [{ text: 'LINE' }, { text: '123456789012' }], {}, async (_s, q) => { seen = Object.keys((q as any).c0.criteria); expect(Object.keys((q as any).c1.criteria)).not.toContain('label:model'); return { answers: { c0: answer('none', 0.9), c1: answer('none', 0.9) } } })
+    expect(seen).toContain('label:model')
+    expect(seen).toContain('none')
+  })
+  test('label:<id> と判定された chunk は値にせず、続く chunk をその欄に入れる（断片全体を値にする）', async () => {
+    const src = 'はアナグラム'
+    const meta = { pendingHint: undefined as string | undefined, labelAt: [] as number[] }
+    const r = await route(f, [{ text: 'LINE' }, { text: 'アナグラム', src: 'はアナグラム', srcN: 1 }], {}, fakeAsk({ c0: answer('label:model', 0.8), c1: answer('none', 0.7) }), [], undefined, meta)
+    expect(r).toEqual([{ fieldId: 'model', value: 'アナグラム', chunk: 'アナグラム', confidence: 0.8 }])
+    expect(meta.labelAt).toEqual([0])
+    void src
+  })
+  test('label:<id> が最後の chunk なら pendingHint として返す（次の発話のヒント）', async () => {
+    const meta = { pendingHint: undefined as string | undefined, labelAt: [] as number[] }
+    const r = await route(f, [{ text: '尾行' }], {}, fakeAsk({ c0: answer('label:note', 0.8) }), [], undefined, meta)
+    expect(r).toEqual([])
+    expect(meta.pendingHint).toBe('備考')
+  })
+  test('自由記述欄の欄名の後は、同じ断片（src）の残りをまとめて 1 つの値にする', async () => {
+    const src = '吾輩は猫である名前はまだない'
+    const meta = { pendingHint: undefined as string | undefined, labelAt: [] as number[] }
+    const chunks = [{ text: '尾行' }, { text: '吾輩', src, srcN: 3 }, { text: '猫', glue: true, src, srcN: 3 }, { text: 'まだない', glue: true, src, srcN: 3, hint: '氏名' }]
+    const r = await route(f, chunks, {}, fakeAsk({ c0: answer('label:note', 0.8), c1: answer('none', 0.5), c2: answer('none', 0.5), c3: answer('none', 0.5) }), [], undefined, meta)
+    expect(r).toEqual([{ fieldId: 'note', value: src, chunk: src, confidence: 0.8 }])
+  })
+})
+
+test('断片に欄名が含まれていた（hint）とき、原文をまとめて値にする際は欄名と助詞を除く（備考欄は底面に傷あり → 底面に傷あり）', async () => {
+  const f: Field[] = [{ id: 'note', label: '備考', kind: 'text' }]
+  const src = '備考欄は底面に傷あり'
+  const r = await route(f, [{ text: '底面', hint: '備考', src, srcN: 2 }, { text: '傷あり', hint: '備考', glue: true, src, srcN: 2 }], {}, fakeAsk({ c0: answer('note'), c1: answer('note') }))
+  expect(r).toEqual([{ fieldId: 'note', value: '底面に傷あり', chunk: '底面に傷あり', confidence: 0.9 }])
+})

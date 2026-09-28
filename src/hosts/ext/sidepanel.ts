@@ -123,7 +123,7 @@ toggle.onclick = async () => {
   if (fields.length === 0) { status.textContent = '入力欄が見つかりません'; return }
   toggle.textContent = '⏹ 停止'
   speech = startSpeech({
-    onFinal: (t) => { addTranscript(t); void engine.final(t) },
+    onFinal: (t, alts) => { addTranscript(t); void engine.final(t, alts) },
     onInterim: (t) => { interimEl.textContent = t },
     onStatus: (m) => { status.textContent = m },
     onFatal: (err) => {

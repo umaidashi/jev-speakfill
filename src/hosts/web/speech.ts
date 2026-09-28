@@ -3,7 +3,7 @@ import type { SpeechRecognitionCtor, SpeechRecognitionLike } from './webspeech'
 
 export type SpeechHandle = { stop(): void }
 export type SpeechCallbacks = {
-  onFinal(text: string): void
+  onFinal(text: string, alternatives?: string[]): void   // alternatives: 第二候補以降（欄名の読み違いの救済に使う）
   onInterim(text: string): void
   onStatus(msg: string): void
   onFatal(error: string): void   // マイク拒否など。再開すると無限ループになる種類
@@ -16,12 +16,17 @@ export function startSpeech(cb: SpeechCallbacks, lang = 'ja-JP'): SpeechHandle {
   let rec: SpeechRecognitionLike | null = null
   const start = () => {
     rec = new SR()
-    rec.lang = lang; rec.continuous = true; rec.interimResults = true
+    rec.lang = lang; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 5
     rec.onresult = (ev) => {
       let interim = ''
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
         const r = ev.results[i]
-        if (r.isFinal) { const t = r[0].transcript.trim(); if (t) cb.onFinal(t) }
+        if (r.isFinal) {
+          const t = r[0].transcript.trim()
+          const alts: string[] = []
+          for (let k = 1; k < r.length; k++) { const a = r[k]?.transcript.trim(); if (a && a !== t) alts.push(a) }
+          if (t) cb.onFinal(t, alts)
+        }
         else interim += r[0].transcript
       }
       cb.onInterim(interim)

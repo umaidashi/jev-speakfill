@@ -12,4 +12,4 @@ npm install                # npm に min-release-age を設定していて新版
 npm run dev                # :5173。/route は 8787 に proxy
 ```
 
-見どころは `src/useSpeakfill.ts`（30 行のフック）。`jev-speakfill/dom` は使っていない。ドメインの語彙（単位・数値扱いにする欄名・instructions）は `App.tsx` の `CONFIG` でサーバ設定に重ねて送る。
+見どころは `src/useSpeakfill.ts`（フック）と `src/SpeakfillFab.tsx`（右下のフロート UI）。フォーム本体は jev-speakfill を知らず、音声入力は opt-in の後付け。`jev-speakfill/dom` は使っていない。ドメインの語彙（単位・数値扱いにする欄名・instructions）は `App.tsx` の `CONFIG` でサーバ設定に重ねて送る。

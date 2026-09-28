@@ -44,7 +44,7 @@ npm run dev            # build → http://localhost:8787
 
 | 項目 | 例 | 効き方 |
 |---|---|---|
-| `synonyms` | `[{"spoken":"名前","label":"氏名"}]` | 発話語 → 欄ラベルの hint |
+| `synonyms` | `[{"spoken":"名前","label":"氏名"}]` | 発話語 → 欄ラベルの hint（決定的・無料。登録が無くても Jev が `label:` 判定と音声認識の別候補で欄名を拾う） |
 | `numericLabels` | `["価格","重量","マチ"]` | `type` が無くても number 扱い（「100円」→ 100） |
 | `unitByLabel` | `[{"labels":["価格"],"unit":"円"}]` | Jev の criteria に単位を添える |
 | `units` | `["センチ","円","グラム"]` | 「幅50高さ60」の対分割で数値に含める単位 |

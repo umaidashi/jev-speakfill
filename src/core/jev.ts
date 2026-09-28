@@ -15,6 +15,11 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
       const unit = cfg.unitByLabel.find((u) => matchesAny(u.labels, f.label))?.unit
       criteria[f.id] = `${f.label || '(ラベルなし)'} (${f.kind}${f.options ? ': ' + f.options.join('/') : type ? ': ' + type + (cfg.typeHints[type] ?? '') : ''}${unit ? `、単位: ${unit}` : ''})`
     }
+    // 短い非数値の chunk は「欄名を言っているだけ」の可能性がある（STT の誤変換込み: LINE=ライン、尾行=備考）。
+    // 値としての欄に加えて「欄名として」の選択肢を出し、Jev に判定させる
+    if (chunk.text.length <= 8 && !/[\d０-９]/.test(chunk.text) && !chunk.hint) {
+      for (const f of fields) if (f.kind !== 'checkbox') criteria[`label:${f.id}`] = `欄名「${f.label}」を言っているだけ（値ではない。読みが同じ誤変換も含む）`
+    }
     criteria[NONE] = '雑談・指示・どの欄の値でもない'
     questions[`c${i}`] = {
       type: 'choice',
