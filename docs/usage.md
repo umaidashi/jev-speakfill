@@ -102,7 +102,7 @@ startSpeech({ onFinal: (t) => engine.final(t), onInterim: () => {}, onStatus: ()
 サーバ側は `pipeline(input, (s, q) => callJev(KEY, s, q))` を `/route` に置く（例は `examples/web-app/server/`）。
 
 ## 自分のアプリに組み込む（React / iOS）
-- **モデルモード**（推奨）: アプリのフォーム定義から `Field[]`（`id` = state のキー、`label`、`kind`、`options`、`type`、`constraints`）を作り、発話を `POST /route` に送り、`RouteResult.apply` を state に入れる。DOM を触らない
+- **モデルモード**（推奨）: アプリのフォーム定義から `Field[]`（`id` = state のキー、`label`、`kind`、`options`、`type`、`constraints`）を作り、発話を `POST /route` に送り、`RouteResult.apply` を state に入れる。DOM を触らない。動く例が `examples/react-app/`（Vite + React、`useSpeakfill` フック 50 行。npm の `jev-speakfill` を install して使っている）
 - **DOM モード**: 既存ページに `widget.js` を後付け
 - iOS は `SFSpeechRecognizer` で文字起こし → `/route` を叩くだけ。コアを Swift に移植する必要はない
 - 状態（`filled` / `ctx` / `recent` / Undo）の持ち方は `src/core/engine.ts` を参照。ホストは `fields / apply / restore / route` の 4 関数を渡す
@@ -121,8 +121,8 @@ startSpeech({ onFinal: (t) => engine.final(t), onInterim: () => {}, onStatus: ()
 
 ## リリース手順（npm）
 1. 作業ブランチ（`feat/…`）で変更し、PR を `main` へ。`main` は保護されていて直接 push できない。CI（`test`）が通ると rebase マージできる
-2. `main` を取り込んだ状態で `npm version patch`（または `minor`）。`package.json` の version が上がり、`v0.1.2` のようなタグが打たれる
-3. `git push --follow-tags`。`v*` タグの push で `publish.yml` が走り、`npm publish --provenance`
+2. 作業ブランチで `npm version patch --no-git-tag-version`（または `minor`）して version を上げ、PR でマージ
+3. `main` を pull してタグを打つ: `git tag v0.1.2 && git push origin v0.1.2`（version と一致させる）。`v*` タグの push で `publish.yml` が走り、`npm publish --provenance`
    - タグが `main` 上のコミットでない、または `package.json` の version と一致しない場合は止まる
    - `v*` タグは ruleset で削除・上書き不可
 4. 公開直後に自分で試すときは `npm install jev-speakfill --min-release-age=0 --prefer-online`

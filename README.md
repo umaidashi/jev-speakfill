@@ -31,7 +31,7 @@
 ```
 npm install jev-speakfill
 ```
-`jev-speakfill`（コア）、`jev-speakfill/dom`（欄の収集と書き込み）、`jev-speakfill/web`（Web Speech の包み）。組み込み方は [docs/usage.md](docs/usage.md)。
+`jev-speakfill`（コア）、`jev-speakfill/dom`（欄の収集と書き込み）、`jev-speakfill/web`（Web Speech の包み）。組み込み方は [docs/usage.md](docs/usage.md)、React の例は [examples/react-app/](examples/react-app/)（DOM を触らず state に配置するモデルモード）。
 
 ## 5 分で試す
 
