@@ -119,3 +119,12 @@ test('prompts.date で日付候補の質問文を差し替えられる', async (
   await pipeline({ fields: typed, text: 'あくる日', filled: {}, ctx: fresh(), now: Date.UTC(2026, 8, 25, 3), config: { prompts: { field: 'F{i}', option: 'O{i}', date: 'D {chunk}/{label}/{today}' } } }, ask2)
   expect(calls[1].date_buy.instructions).toBe('D あくる日/仕入日/2026-09-25')
 })
+
+test('Jev が最後の chunk を欄名と判定したら ctx.hint に残り、unplaced に数えない', async () => {
+  const f: Field[] = [{ id: 'note', label: '備考', kind: 'text' }]
+  const ask2: JevAsk = async (_s, q) => ({ answers: Object.fromEntries(Object.keys(q).map((id) => [id, answer('label:note', 0.8)])) })
+  const r = await pipeline({ fields: f, text: '尾行', filled: {}, ctx: fresh(), now: 0 }, ask2)
+  expect(r.ctx.hint).toBe('備考')
+  expect(r.hint).toBe('備考')
+  expect(r.unplaced).toEqual([])
+})

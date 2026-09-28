@@ -11,6 +11,7 @@ export function useSpeakfill(fields: Field[], endpoint = '/route', config?: Part
   const [events, setEvents] = useState<EngineEvent[]>([])
   const [listening, setListening] = useState(false)
   const [interim, setInterim] = useState('')
+  const [status, setStatus] = useState('')     // 音声認識の状態・エラー（止まった理由が見えるように）
   const valuesRef = useRef(values)       // Engine は同期的に前の値を知りたいので ref で持つ
   valuesRef.current = values
   const speech = useRef<SpeechHandle | null>(null)
@@ -37,15 +38,18 @@ export function useSpeakfill(fields: Field[], endpoint = '/route', config?: Part
   const toggle = useCallback(() => {
     if (speech.current) { speech.current.stop(); speech.current = null; setListening(false); setInterim(''); return }
     speech.current = startSpeech({
-      onFinal: (t) => { void engine.final(t) },
+      onFinal: (t, alts) => { void engine.final(t, alts) },
       onInterim: setInterim,
-      onStatus: () => {},
-      onFatal: () => { speech.current = null; setListening(false) },
+      onStatus: setStatus,
+      onFatal: (err) => {
+        speech.current = null; setListening(false)
+        setStatus(`音声認識が停止: ${err}` + (err === 'network' ? '（Chrome の音声サービスに繋がらない。他のタブ・拡張の side panel でマイクを使っていないか確認）' : err === 'not-allowed' ? '（アドレスバー左のアイコンからマイクを許可）' : ''))
+      },
     })
     setListening(true)
   }, [engine])
 
   useEffect(() => () => speech.current?.stop(), [])
 
-  return { values, setValues, events, listening, interim, toggle, undo: () => engine.undo(), canUndo: engine.canUndo }
+  return { values, setValues, events, listening, interim, status, toggle, undo: () => engine.undo(), canUndo: engine.canUndo }
 }

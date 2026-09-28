@@ -14,6 +14,7 @@ export async function handleRoute(body: string, ask: JevAsk, baseConfig: Partial
   input.filled ??= {}
   input.ctx = { hint: input.ctx?.hint ?? undefined, last: input.ctx?.last ?? undefined }
   input.now ??= Date.now()
+  input.alternatives = Array.isArray(input.alternatives) ? input.alternatives.slice(0, 5).map(String) : undefined
   input.recent = Array.isArray(input.recent) ? input.recent.slice(-10).map(String) : []   // 上限だけ。数は config.recentCount で engine 側が絞る
   input.config = { ...baseConfig, ...(input.config ?? {}) }   // サーバの設定ファイル < リクエスト
   try {

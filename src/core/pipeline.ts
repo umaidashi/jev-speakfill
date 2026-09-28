@@ -2,14 +2,16 @@ import { segment } from './segment'
 import { applyContext, gate, type Context } from './context'
 import { coerce, effectiveType, fmtDate, isDateLike, localYMD, parseDateSkeleton } from './format'
 import { fill, resolveConfig, type SpeakfillConfig } from './config'
-import { route } from './route'
+import { route, type RouteMeta } from './route'
+import { pickTranscript } from './transcript'
 import type { Answer, Chunk, Field, JevAsk, JevUsage, Placement, Question } from './types'
 import { NONE } from './jev'
 
 // 発話 1 回分を「配置」に変える全段階。ホスト（拡張 / web / サーバ）はこれを呼ぶだけ
 export type RouteInput = {
   fields: Field[]
-  text: string                      // Web Speech の final
+  text: string                      // Web Speech の final（第一候補）
+  alternatives?: string[]           // 他の候補。欄名・選択肢が多く含まれる候補があれば pipeline がそれを採る
   filled: Record<string, string>    // 入力済み（fieldId → 値）
   ctx: Context                      // 発話をまたぐ文脈（呼び出し側が持ち回る）
   now: number
@@ -29,7 +31,9 @@ export type RouteResult = {
 // 文字起こしから配置までの全段階。解析用にそのまま保存できる JSON
 export type Trace = {
   at: number
-  text: string
+  text: string                      // 採用した文字起こし
+  primary?: string                  // 第一候補（text と違えば alternatives から選び直した）
+  alternatives?: string[]
   filled: Record<string, string>
   ctxBefore: Context
   segment: Chunk[]
@@ -49,9 +53,12 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
     return res
   }
   const cfg = resolveConfig(input.config)
-  const seg = segment(input.text, true, input.fields, cfg)
+  const text = pickTranscript(input.text, input.alternatives, input.fields, cfg)
+  const seg = segment(text, true, input.fields, cfg)
   const { chunks, direct } = applyContext(seg, input.fields, ctx, input.now, cfg)
-  const routed = chunks.length ? await route(input.fields, chunks, input.filled, askTraced, input.recent ?? [], cfg) : []
+  const meta: RouteMeta = { labelAt: [] }
+  const routed = chunks.length ? await route(input.fields, chunks, input.filled, askTraced, input.recent ?? [], cfg, meta) : []
+  if (meta.pendingHint) ctx.hint = meta.pendingHint   // Jev が「欄名だけ」と判定した末尾 chunk → 次の発話のヒント
   const g = gate([...direct, ...routed], input.fields, ctx, input.now, cfg)
   // 「町 100」: Jev が「町」を欄名（マチ）と判断したら、同じ発話の直後の数字 chunk をその欄に直接入れる
   for (const lp of g.labelish) {
@@ -68,9 +75,9 @@ export async function pipeline(input: RouteInput, ask: JevAsk): Promise<RouteRes
   }
   await resolveDatesWithJev(g, input, cfg, askTraced)
   const placedChunks = [...g.apply, ...g.pending, ...g.rejected, ...g.labelish].map((p) => p.chunk)
-  const unplaced = chunks.filter((c) => !placedChunks.some((t) => t.includes(c.text))).map((c) => c.text)
+  const unplaced = chunks.filter((c, i) => !meta.labelAt.includes(i) && !placedChunks.some((t) => t.includes(c.text))).map((c) => c.text)
   const trace: Trace = {
-    at: input.now, text: input.text, filled: { ...input.filled }, ctxBefore: { ...input.ctx },
+    at: input.now, text, filled: { ...input.filled }, ctxBefore: { ...input.ctx }, alternatives: input.alternatives, primary: input.text,
     segment: seg, context: { chunks, direct }, jev, routed, gate: g,
   }
   // hint を返すのは「欄名だけの発話」のとき（chunk が無い、または gate で欄名扱いになった）

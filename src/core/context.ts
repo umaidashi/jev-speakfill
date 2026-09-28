@@ -27,7 +27,11 @@ function labelFor(text: string, all: Field[], cfg: SpeakfillConfig): string | un
 export function applyContext(chunks: Chunk[], fields: Field[], ctx: Context, now: number, cfg: SpeakfillConfig = DEFAULT_CONFIG): { chunks: Chunk[]; direct: Placement[] } {
   const out: Chunk[] = []
   const direct: Placement[] = []
+  let skipSrc: string | undefined   // ヒント適用でまとめ直した断片の残りは読み飛ばす
+  let skipGlueOnly = false
   for (const c of chunks) {
+    if (skipSrc && c.src === skipSrc && (!skipGlueOnly || c.glue)) continue
+    skipSrc = undefined
     const label = labelFor(c.text, fields, cfg)
     if (label) { ctx.hint = label; continue }
 
@@ -40,8 +44,21 @@ export function applyContext(chunks: Chunk[], fields: Field[], ctx: Context, now
       continue
     }
 
-    const text = NUMERIC.test(c.text) ? c.text.replace(/^[-ー－\s]+/, '') : c.text
-    out.push(ctx.hint && !c.hint ? { ...c, text, hint: ctx.hint } : { ...c, text })
+    let text = NUMERIC.test(c.text) ? c.text.replace(/^[-ー－\s]+/, '') : c.text
+    if (ctx.hint && !c.hint) {
+      // 「LINE はモノグラム」のように欄名の後で空白が入ると、助詞が値側の先頭に残る。ヒントを当てるときに落とす
+      text = text.replace(/^[はがで](?=.)/, '')
+      // 欄名を言った直後の文は 1 つの値（「備考 吾輩は猫である…」）。同じ断片の残りをまとめ直す。
+      // 自由記述欄なら断片全体、数値・日付欄なら単語分割で割れた分だけ
+      const hf = fields.find((f) => f.label === ctx.hint)
+      if (c.src) {
+        skipSrc = c.src; skipGlueOnly = !!(hf && (hf.options?.length || effectiveType(hf, cfg)))
+        text = skipGlueOnly ? c.text : c.src.replace(/^[はがで](?=.)/, '')
+      }
+      out.push({ text, hint: ctx.hint })
+    } else {
+      out.push({ ...c, text })
+    }
     ctx.hint = undefined
   }
   return { chunks: out, direct }

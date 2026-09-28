@@ -66,6 +66,7 @@ test('数字以外の chunk はそのまま通す', () => {
 })
 
 import { gate } from '../../src/core/context'
+import { resolveConfig } from '../../src/core/config'
 import { coerce } from '../../src/core/format'
 
 test('gate 経由の形式判定: 電話は 10〜11 桁、郵便は 7 桁。短い/長い/対象外', () => {
@@ -132,4 +133,21 @@ test('gate: 数値欄に数字を含まない値（「たかさ」= 欄名の読
   const g = gate([{ fieldId: 'h', value: 'たかさ', chunk: 'たかさ', confidence: 0.9 }], typed, ctx, 0)
   expect(g.apply).toEqual([]); expect(g.rejected).toEqual([])
   expect(ctx.hint).toBe('高さ (cm)')
+})
+
+test('欄名の後に空白が入り助詞が次の chunk 先頭に付いたとき（「LINE はモノグラム」）、ヒント適用時に先頭の助詞を落とす', () => {
+  const ctx = fresh()
+  const f2: Field[] = [...fields, { id: 'model', label: 'ライン・モデル名', kind: 'text' }]
+  const cfg = resolveConfig({ synonyms: [{ spoken: 'LINE', label: 'ライン' }] })
+  const r = applyContext([{ text: 'LINE' }, { text: 'はモノグラム' }], f2, ctx, 0, cfg)
+  expect(r.chunks).toEqual([{ text: 'モノグラム', hint: 'ライン・モデル名' }])
+})
+
+test('欄名だけの chunk の直後に単語分割された文が続くとき、同じ断片（src）をまとめて 1 つの値にする（備考 吾輩は猫である）', () => {
+  const ctx = fresh()
+  const f2: Field[] = [...fields, { id: 'note', label: '備考', kind: 'text' }]
+  const src = '吾輩は猫である名前はまだない'
+  const chunks = [{ text: '備考' }, { text: '吾輩', src, srcN: 3 }, { text: '猫', glue: true, src, srcN: 3 }, { text: 'ある名前', glue: true, src, srcN: 3 }, { text: '赤' }]
+  const r = applyContext(chunks, f2, ctx, 0)
+  expect(r.chunks).toEqual([{ text: src, hint: '備考' }, { text: '赤' }])
 })

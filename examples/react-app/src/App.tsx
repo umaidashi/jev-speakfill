@@ -1,5 +1,6 @@
 import type { Field } from 'jev-speakfill'
 import { useSpeakfill } from './useSpeakfill'
+import { SpeakfillFab } from './SpeakfillFab'
 
 // フォーム定義がそのまま Field[]。id が state のキー。HTML は触らない
 const FIELDS: Field[] = [
@@ -30,51 +31,26 @@ export function App() {
   const sf = useSpeakfill(FIELDS, '/route', CONFIG)
   const set = (id: string, v: string) => sf.setValues((s) => ({ ...s, [id]: v }))
   return (
-    <main style={{ font: '14px system-ui', maxWidth: 720, margin: '24px auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-      <section>
-        <h1 style={{ fontSize: 18 }}>商品登録（React state に直接配置）</h1>
-        <p>
-          <button onClick={sf.toggle} style={{ fontSize: 16 }}>{sf.listening ? '⏹ 停止' : '🎤 開始'}</button>{' '}
-          <button onClick={sf.undo} disabled={!sf.canUndo}>↩ 取り消し</button>
-          <span style={{ color: '#888', marginLeft: 8 }}>{sf.interim}</span>
-        </p>
-        <form style={{ display: 'grid', gap: 6 }} onSubmit={(e) => e.preventDefault()}>
-          {FIELDS.map((f) => (
-            <label key={f.id} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'center' }}>
-              <span>{f.label}</span>
-              {f.kind === 'select' ? (
-                <select value={sf.values[f.id] ?? ''} onChange={(e) => set(f.id, e.target.value)}>
-                  <option value="">選択してください</option>
-                  {f.options!.map((o) => <option key={o}>{o}</option>)}
-                </select>
-              ) : (
-                <input type={f.type ?? 'text'} value={sf.values[f.id] ?? ''} onChange={(e) => set(f.id, e.target.value)} {...f.constraints} />
-              )}
-            </label>
-          ))}
-        </form>
-        <pre style={{ background: '#f6f6f6', padding: 8, fontSize: 12 }}>{JSON.stringify(sf.values, null, 1)}</pre>
-      </section>
-      <section>
-        <h2 style={{ fontSize: 14 }}>イベント</h2>
-        <ul style={{ fontSize: 12, paddingLeft: 16 }}>
-          {sf.events.map((ev, i) => <li key={i}>{describe(ev)}</li>)}
-        </ul>
-      </section>
+    <main style={{ font: '14px system-ui', maxWidth: 560, margin: '24px auto' }}>
+      <h1 style={{ fontSize: 18 }}>商品登録</h1>
+      <p style={{ color: '#666' }}>普通のフォーム。音声入力は右下の 🎤 から opt-in（フォーム側は jev-speakfill を知らない）。</p>
+      <form style={{ display: 'grid', gap: 6 }} onSubmit={(e) => e.preventDefault()}>
+        {FIELDS.map((f) => (
+          <label key={f.id} style={{ display: 'grid', gridTemplateColumns: '130px 1fr', alignItems: 'center' }}>
+            <span>{f.label}</span>
+            {f.kind === 'select' ? (
+              <select value={sf.values[f.id] ?? ''} onChange={(e) => set(f.id, e.target.value)}>
+                <option value="">選択してください</option>
+                {f.options!.map((o) => <option key={o}>{o}</option>)}
+              </select>
+            ) : (
+              <input type={f.type ?? 'text'} value={sf.values[f.id] ?? ''} onChange={(e) => set(f.id, e.target.value)} {...f.constraints} />
+            )}
+          </label>
+        ))}
+      </form>
+      <details style={{ marginTop: 12 }}><summary style={{ color: '#888' }}>state</summary><pre style={{ background: '#f6f6f6', padding: 8, fontSize: 12 }}>{JSON.stringify(sf.values, null, 1)}</pre></details>
+      <SpeakfillFab {...sf} />
     </main>
   )
-}
-
-function describe(ev: ReturnType<typeof useSpeakfill>['events'][number]): string {
-  switch (ev.type) {
-    case 'placed': return `${ev.label} ← ${ev.value} (${ev.confidence.toFixed(2)})`
-    case 'pending': return `${ev.label}: ${ev.value}（続き待ち）`
-    case 'rejected': return `${ev.label}: ${ev.value}（形式不正）`
-    case 'unplaced': return `未配置: ${ev.text}`
-    case 'waiting': return `「${ev.hint}」の値を待っています`
-    case 'failed': return `書き込み失敗: ${ev.label}`
-    case 'undone': return `取り消し: ${ev.label}`
-    case 'error': return `エラー: ${ev.message}`
-    case 'trace': return `trace: ${ev.trace.jev.length} 往復`
-  }
 }

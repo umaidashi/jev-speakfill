@@ -26,8 +26,11 @@ const bareLabel = (label: string) => label.replace(/[（(].*?[)）]/g, '').trim(
 // 送り仮名を無視した比較用（仕入れ日 → 仕入日）
 const okuriganaKey = (s: string) => s.replace(/[ぁ-ゖー]/g, '')
 
-function stripHint(text: string, fields: Field[], cfg: SpeakfillConfig): Chunk {
+function stripHint(text0: string, fields: Field[], cfg: SpeakfillConfig): Chunk {
+  // 「備考欄」「備考欄は」の「欄」は欄名の一部ではない
+  const text = text0.replace(/欄(?=[はがで]?$)/, '')
   // 「仕入れ日は」のように欄名 + 助詞だけ → 欄名そのものに正規化（context が次の値のヒントにする）
+  if (fields.some((f) => bareLabel(f.label) === text)) return { text }
   const only = /^(.{1,12}?)[はがで]$/.exec(text)
   if (only) {
     const f = fields.find((f) => bareLabel(f.label) === only[1] || (okuriganaKey(only[1]).length >= 2 && okuriganaKey(bareLabel(f.label)) === okuriganaKey(only[1])))
@@ -35,7 +38,7 @@ function stripHint(text: string, fields: Field[], cfg: SpeakfillConfig): Chunk {
   }
   const m = /^(.{1,12}?)[はがで](.+)$/.exec(text)
   if (m) {
-    const word = m[1]
+    const word = m[1].replace(/欄$/, '')
     const byLabel = fields.find((f) => f.label && (f.label.startsWith(word) || bareLabel(f.label) === word || (okuriganaKey(word).length >= 2 && okuriganaKey(bareLabel(f.label)) === okuriganaKey(word))))
     const bySyn = cfg.synonyms.find((x) => x.spoken === word)
     const target = byLabel ?? (bySyn && fields.find((f) => f.label.includes(bySyn.label)))
@@ -143,24 +146,27 @@ export function segment(text: string, isFinal: boolean, fields: Field[], cfg: Sp
   const trail = anyOf(cfg.trailers)
   const negation = anyOf(cfg.negations)
   // 「12,500」の桁区切りは区切りではない
-  return mergeDigits(text.replace(/(\d)[,，](\d{3})(?!\d)/g, '$1$2').split(SPLIT))
-    .flatMap((part) => {
-      // 「山田太郎で電話は…」のようにラベル語の直前で割れた場合だけ、前側の末尾「で」を落とす
-      const parts = ps ? part.split(ps) : [part]
-      return parts.map((q, i) => (i < parts.length - 1 ? q.replace(/で$/, '') : q))
-    })
-    .map((part) => (trail ? part.replace(new RegExp(`(?:${trail.source})$`), '') : part))
-    .filter((part) => part.length > 0 && !particles.has(part))   // 「の」だけの chunk は捨てる
-    .flatMap((part) => splitPairs(part, fields, cfg) ?? [stripHint(part, fields, cfg)])
-    .filter((c) => c.text.length > 0)
-    .flatMap((c) => {
-      // 欄名だけ・数字・否定はそのまま。それ以外は単語に割り、2 語目以降に glue を付ける
-      // hint 先が日付・数値欄なら値は 1 つの表現（「先週の金曜日」）なので割らない
-      const hinted = c.hint && fields.find((f) => f.label === c.hint)
-      if (hinted && effectiveType(hinted, cfg)) return [c]
-      if (isLabelWord(c.text, fields, cfg) || !JAPANESE_ONLY.test(c.text) || HIRAGANA.test(c.text) || (negation && negation.test(c.text))) return [c]
-      const ws = words(c.text, dict, particles)
-      if (ws.length === 1) return [{ ...c, text: ws[0] }]
-      return ws.map((w, i) => (i === 0 ? { ...c, text: w, src: c.text, srcN: ws.length } : { ...c, text: w, glue: true, src: c.text, srcN: ws.length }))
-    })
+  return mergeDigits(text.replace(/(\d)[,，](\d{3})(?!\d)/g, '$1$2').split(SPLIT)).flatMap((part) => {
+    const chunks = [part]
+      .flatMap((p) => {
+        // 「山田太郎で電話は…」のようにラベル語の直前で割れた場合だけ、前側の末尾「で」を落とす
+        const parts = ps ? p.split(ps) : [p]
+        return parts.map((q, i) => (i < parts.length - 1 ? q.replace(/で$/, '') : q))
+      })
+      .map((p) => (trail ? p.replace(new RegExp(`(?:${trail.source})$`), '') : p))
+      .filter((p) => p.length > 0 && !particles.has(p))   // 「の」だけの chunk は捨てる
+      .flatMap((p) => splitPairs(p, fields, cfg) ?? [stripHint(p, fields, cfg)])
+      .filter((c) => c.text.length > 0)
+      .flatMap((c) => {
+        // 欄名だけ・数字・否定はそのまま。それ以外は単語に割り、2 語目以降に glue を付ける
+        // hint 先が日付・数値欄なら値は 1 つの表現（「先週の金曜日」）なので割らない
+        const hinted = c.hint && fields.find((f) => f.label === c.hint)
+        if (hinted && effectiveType(hinted, cfg)) return [c]
+        if (isLabelWord(c.text, fields, cfg) || !JAPANESE_ONLY.test(c.text) || HIRAGANA.test(c.text) || (negation && negation.test(c.text))) return [c]
+        const ws = words(c.text, dict, particles)
+        return ws.map((w, i) => (i === 0 ? { ...c, text: w } : { ...c, text: w, glue: true }))
+      })
+    // 読点区切りの断片から複数 chunk が出たら、元の断片を src として全部に付ける（欄名の後の文をまとめ直す・自由記述の原文保持に使う）
+    return chunks.length > 1 ? chunks.map((c) => ({ ...c, src: part, srcN: chunks.length })) : chunks
+  })
 }

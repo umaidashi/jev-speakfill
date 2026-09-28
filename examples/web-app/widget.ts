@@ -75,7 +75,7 @@ fab.onclick = () => {
   panel.style.display = 'block'
   fab.style.background = '#d93025'
   speech = startSpeech({
-    onFinal: (t) => { addTranscript(t); void engine.final(t) },
+    onFinal: (t, alts) => { addTranscript(t); void engine.final(t, alts) },
     onInterim: (t) => { interim.textContent = t },
     onStatus: (m) => { status.textContent = m },
     onFatal: (err) => { speech = null; fab.style.background = '#1a73e8'; status.textContent = `音声エラー: ${err}` },

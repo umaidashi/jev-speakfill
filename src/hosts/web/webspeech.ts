@@ -5,6 +5,7 @@ export interface SpeechRecognitionLike extends EventTarget {
   lang: string
   continuous: boolean
   interimResults: boolean
+  maxAlternatives: number
   onresult: ((ev: SpeechRecognitionEventLike) => void) | null
   onerror: ((ev: SpeechRecognitionErrorEventLike) => void) | null
   onend: (() => void) | null

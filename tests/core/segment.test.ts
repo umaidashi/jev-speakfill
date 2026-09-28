@@ -190,3 +190,19 @@ test('DEFAULT 設定には同義語が無い（ドメイン語彙はプリセッ
   expect(segmentRaw('名前は山田太郎', true, fields).some((c) => c.hint)).toBe(false)   // 同義語なし → hint が付かない
   expect(segmentRaw('名前は山田太郎', true, fields, CFG).map((c) => c.hint)).toEqual(['氏名', '氏名'])   // プリセットあり → hint
 })
+
+test('「備考欄」「備考欄は」は欄名そのもの（末尾の「欄」を無視）', () => {
+  const f2: Field[] = [...fields, { id: 'note', label: '備考', kind: 'text' }]
+  expect(segment('備考欄', true, f2)).toEqual([{ text: '備考' }])
+  expect(segment('備考欄は', true, f2)).toEqual([{ text: '備考' }])
+  expect(segment('備考欄は底面に傷', true, f2).every((c) => c.hint === '備考')).toBe(true)
+})
+
+test('src は読点区切りの断片全体（助詞分割・単語分割の前）。断片から複数 chunk が出たときだけ付く', () => {
+  const f2: Field[] = [...fields, { id: 'note', label: '備考', kind: 'text' }]
+  const r = segmentRaw('底面に小さな傷と角スレがあります、赤', true, f2)
+  const first = r.filter((c) => c.src === '底面に小さな傷と角スレがあります')
+  expect(first.length).toBeGreaterThan(1)
+  expect(first.every((c) => c.srcN === first.length)).toBe(true)
+  expect(r[r.length - 1]).toEqual({ text: '赤' })
+})

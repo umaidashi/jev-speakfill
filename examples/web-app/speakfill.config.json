@@ -31,6 +31,26 @@
     {
       "spoken": "フリガナ",
       "label": "カナ"
+    },
+    {
+      "spoken": "ライン",
+      "label": "ライン"
+    },
+    {
+      "spoken": "モデル",
+      "label": "モデル"
+    },
+    {
+      "spoken": "ランク",
+      "label": "ランク"
+    },
+    {
+      "spoken": "金具",
+      "label": "金具"
+    },
+    {
+      "spoken": "備考",
+      "label": "備考"
     }
   ],
   "numericLabels": [
