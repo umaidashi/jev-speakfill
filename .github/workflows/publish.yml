@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: タグが main 上のコミットか（main の CI を通ったものだけ公開する）
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "tag is not on main"; exit 1; }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, registry-url: https://registry.npmjs.org }
       - run: npm ci
