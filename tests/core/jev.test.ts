@@ -20,14 +20,23 @@ test('1 往復目は欄選択だけ（option 質問は同梱しない）', () =>
   expect(Object.keys(questions)).toEqual(['c0'])
 })
 
-test('optionQuestion は選択肢 + none を criteria にする', () => {
-  expect(Object.keys(optionQuestion(0, fields[1]).criteria)).toEqual(['東京都', '大阪府', 'none'])
+test('optionQuestion は候補欄を「欄id=選択肢」と欄id に平らに並べ、none を足す', () => {
+  const q = optionQuestion(0, fields)
+  expect(Object.keys(q.criteria)).toEqual(['name', 'pref=東京都', 'pref=大阪府', 'none'])
+  expect(q.criteria['pref=東京都']).toBe('都道府県 = 東京都')
+})
+
+test('1 往復目の criteria と state には選択肢の全件を載せない（例だけ）', () => {
+  const many: Field[] = [{ id: 'brand', label: 'ブランド', kind: 'select', options: Array.from({ length: 50 }, (_, i) => `B${i}`) }]
+  const { state, questions } = buildQuestions(many, [{ text: 'B3' }], {})
+  expect(questions.c0.criteria.brand).toBe('ブランド (select: 例 B0/B1/B2/B3/B4 ほか全 50 件)')
+  expect(JSON.stringify(state)).not.toContain('B10')
 })
 
 test('欄選択・option 選択とも同音異義の注意が instructions に入る（Review Focus 6）', () => {
   const { questions } = buildQuestions(fields, [{ text: '川' }], {})
   expect(questions.c0.instructions).toContain('同音')
-  expect(optionQuestion(0, fields[1]).instructions).toContain('同音')
+  expect(optionQuestion(0, [fields[1]]).instructions).toContain('同音')
 })
 
 test('state に欄と chunk と filled が入り、ページ本文は含まない', () => {
@@ -65,7 +74,7 @@ test('設定の instructions（ドメイン説明）が欄選択・選択肢選�
   const cfg = resolveConfig({ instructions: 'これは中古ブランドバッグの買取フォーム。「ランク」は状態ランク。' })
   const { questions } = buildQuestions(fields, [{ text: 'A' }], {}, [], cfg)
   expect(questions.c0.instructions).toContain('買取フォーム')
-  expect(optionQuestion(0, fields[1], cfg).instructions).toContain('買取フォーム')
+  expect(optionQuestion(0, [fields[1]], cfg).instructions).toContain('買取フォーム')
   expect(buildQuestions(fields, [{ text: 'A' }], {}).questions.c0.instructions).not.toContain('買取')
 })
 
@@ -80,6 +89,6 @@ test('prompts で Jev の instructions 全文を差し替えられる（プレ�
   })
   const { questions } = buildQuestions(fields, [{ text: '東京', hint: '都道府県' }], {}, [], cfg)
   expect(questions.c0.instructions).toBe('FIELD 0 hint=話者は欄名「都道府県」を明示した。強く考慮せよ。 note=N extra=X')
-  expect(optionQuestion(0, fields[1], cfg).instructions).toBe('OPTION 0 label=都道府県')
+  expect(optionQuestion(0, [fields[1]], cfg).instructions).toBe('OPTION 0 label=都道府県')
   expect(DEFAULT_CONFIG.prompts.field).toContain('{i}')   // 既定テンプレートは現行の文面
 })

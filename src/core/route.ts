@@ -1,4 +1,4 @@
-import { buildQuestions, NONE, optionQuestion } from './jev'
+import { buildQuestions, finalQuestion, NONE, optionKey, optionQuestions } from './jev'
 import { DEFAULT_CONFIG, type SpeakfillConfig } from './config'
 import { effectiveType } from './format'
 import type { Chunk, Field, JevAsk, Placement, Question } from './types'
@@ -30,20 +30,62 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
     if (!next) { meta.pendingHint = f.label; return }
     if (next.src && !f.options?.length && !effectiveType(f, cfg)) for (let j = i + 2; j < chunks.length && chunks[j].src === next.src; j++) swallowed.add(j)   // 自由記述: 断片の残りをまとめる
   })
-  // 1 往復目で選ばれた欄のうち、選択肢を持つものだけ 2 往復目で option を選ぶ
+  // 1 往復目で選ばれた欄。欄名・hint で決まったものは 2 往復目でも動かさない
+  const forced = new Set<number>()
+  // 1 往復目で閾値に届かないが none でもない chunk。選択肢の全件を見せていないので確信が下がる。2 往復目で比べ直させる
+  const unsure = new Set<number>()
   const chosen = chunks.map((chunk, i) => {
     if (labelOf.has(i) || swallowed.has(i)) return undefined
     const byLabel = labelOf.get(i - 1)
-    if (byLabel) return byLabel
+    if (byLabel) { forced.add(i); return byLabel }
     const a = answers[`c${i}`]
     if (a && a.choice !== NONE && !a.choice.startsWith('label:') && a.confidence >= cfg.threshold) return fields.find((f) => f.id === a.choice)
+    if (a && a.choice !== NONE && !a.choice.startsWith('label:') && a.confidence >= cfg.topFieldMin && !chunk.hint) { unsure.add(i); return fields.find((f) => f.id === a.choice) }
     // 話者が欄名を言っている（hint）なら、Jev が迷っても hint の欄を信じる
-    if (chunk.hint) return fields.find((f) => f.label === chunk.hint)
+    if (chunk.hint) { forced.add(i); return fields.find((f) => f.label === chunk.hint) }
     return undefined
   })
+  // 2 往復目の候補: 1 往復目の確率上位の欄
+  const candidatesOf = (i: number, f: Field): Field[] => {
+    if (forced.has(i)) return [f]
+    const probs = answers[`c${i}`]?.probabilities ?? {}
+    const top = fields.filter((x) => (probs[x.id] ?? 0) >= cfg.topFieldMin).sort((a, b) => (probs[b.id] ?? 0) - (probs[a.id] ?? 0)).slice(0, cfg.topFields)
+    return top.some((x) => x.id === f.id) ? top : [f, ...top.slice(0, cfg.topFields - 1)]
+  }
   const optQ: Record<string, Question> = {}
-  chosen.forEach((f, i) => { if (f?.options?.length) optQ[`c${i}_${f.id}`] = optionQuestion(i, f, cfg) })
+  const candidates = new Map<number, Field[]>()
+  chosen.forEach((f, i) => {
+    if (!f) return
+    const cs = candidatesOf(i, f)
+    // 自由記述の欄を確信して選んだ chunk は 2 往復目に回さない（選択肢の大きな欄と並べると答えが薄まる）
+    if (!f.options?.length && !unsure.has(i)) return
+    candidates.set(i, cs)
+    optionQuestions(i, cs, cfg).forEach((q, b) => { optQ[b === 0 ? `c${i}_opt` : `c${i}_opt${b}`] = q })
+  })
   const optAnswers = Object.keys(optQ).length ? (await ask(state, optQ)).answers : {}
+  // 250 件を超えて分割した chunk は、各組の勝者から 3 往復目で 1 つ選び直す
+  const finalQ: Record<string, Question> = {}
+  candidates.forEach((cs, i) => {
+    const winners = Object.entries(optAnswers)
+      .filter(([k, a]) => k.startsWith(`c${i}_opt`) && a.choice !== NONE)
+      .map(([, a]) => a.choice)
+    if (Object.keys(optQ).filter((k) => k.startsWith(`c${i}_opt`)).length > 1 && winners.length > 1) finalQ[`c${i}_opt`] = finalQuestion(i, winners, cs, cfg)
+  })
+  const finalAnswers = Object.keys(finalQ).length ? (await ask(state, finalQ)).answers : {}
+  // 2 往復目の答えで欄と選択肢を確定する。`<欄id>=<選択肢>` か欄 id
+  const picked = new Map<number, { option?: string; confidence: number }>()
+  candidates.forEach((cs, i) => {
+    // 3 往復目で選び直したらその答え。分割しなかった、または勝者が 1 つだったときは none でない組の答えのうち最も確かなもの
+    const opt = finalAnswers[`c${i}_opt`] ?? Object.entries(optAnswers)
+      .filter(([k, a]) => k.startsWith(`c${i}_opt`) && a.choice !== NONE)
+      .map(([, a]) => a)
+      .sort((a, b) => b.confidence - a.confidence)[0]
+    if (!opt || opt.choice === NONE || opt.confidence < cfg.optionThreshold) { chosen[i] = undefined; return }
+    const f = cs.find((x) => opt.choice === optionKey(x) || opt.choice.startsWith(`${x.id}=`))
+    if (!f) { chosen[i] = undefined; return }
+    chosen[i] = f
+    picked.set(i, { option: f.options?.length ? opt.choice.slice(f.id.length + 1) : undefined, confidence: opt.confidence })
+  })
   const out: Placement[] = []
   const optConf = new Map<Placement, number>()
   const merged = new Map<Placement, number>()   // 連結した語数
@@ -53,14 +95,16 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
     const a0 = answers[`c${i}`]
     const viaLabel = labelOf.get(i - 1)
     // 欄名判定で選んだ場合はその判定の confidence、hint で選んだ場合はその欄に Jev が与えた確率を confidence として残す
-    const a = viaLabel ? { ...a0, choice: field.id, confidence: answers[`c${i - 1}`].confidence } : a0.choice === field.id ? a0 : { ...a0, choice: field.id, confidence: a0.probabilities[field.id] ?? cfg.threshold }
+    const a1 = viaLabel ? { ...a0, choice: field.id, confidence: answers[`c${i - 1}`].confidence } : a0.choice === field.id ? a0 : { ...a0, choice: field.id, confidence: a0.probabilities[field.id] ?? cfg.threshold }
+    // 2 往復目で決まった自由記述の chunk はその confidence を残す（選択肢の欄は欄の confidence を残し、選択肢の confidence は optConf で比べる）
+    const a = picked.has(i) && !field.options?.length ? { ...a1, confidence: picked.get(i)!.confidence } : a1
     // 自由記述欄の欄名の直後は、断片全体を値にする（先頭に残った助詞は落とす）
     const text = viaLabel && chunk.src && !field.options?.length && !effectiveType(field, cfg) ? chunk.src.replace(/^[はがで](?=.)/, '') : viaLabel ? chunk.text.replace(/^[はがで](?=.)/, '') : chunk.text
     let value: string
     if (field.options?.length) {
-      const opt = optAnswers[`c${i}_${field.id}`]
-      if (!opt || opt.choice === NONE || opt.confidence < cfg.optionThreshold) return
-      value = opt.choice
+      const opt = picked.get(i)
+      if (!opt?.option) return
+      value = opt.option
       // 同じ選択肢欄に隣接 chunk が向いたら（「ほぼ」「新品」）、選択肢の confidence が高い方だけ残す
       const last = out[out.length - 1]
       if (last && last.fieldId === field.id) {

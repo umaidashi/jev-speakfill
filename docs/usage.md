@@ -55,6 +55,8 @@ npm run dev            # build → http://localhost:8787
 | `timeZone` | `"Asia/Tokyo"` | 「今日」「明日」を解決するタイムゾーン |
 | `relativeDays` / `relativeYears` | `{"きょう":0,"あした":1}` / `{"らいねん":1}` | 相対日付の語彙（かな表記・読み違いを足す） |
 | `threshold` / `optionThreshold` | `0.5` / `0.3` | 欄選択・選択肢選択で採用する confidence の下限 |
+| `topFields` / `topFieldMin` | `3` / `0.05` | 2 往復目で比べ直す欄の数と、候補に入れる確率の下限 |
+| `exampleOptions` | `5` | 1 往復目の欄の説明に添える選択肢の例の数（全件は 2 往復目だけに出す） |
 | `prompts.field` / `prompts.option` / `prompts.date` | `"`chunks[{i}].text` は…{sttNote}{hint}…{instructions}"` | Jev への質問文の全文（`{i}` `{label}` `{hint}` `{chunk}` `{today}` `{sttNote}` `{instructions}` を埋める） |
 | `recentCount` / `dateCandidateDays` / `dateCandidateYears` | `3` / `14` / `2` | 直前発話の数、日付候補の範囲 |
 | `telDigits` / `zipDigits` | `[10,11]` / `[7,7]` | 桁数の範囲 |
@@ -99,7 +101,7 @@ const host: Host = {
 const engine = new Engine(host, (ev) => console.log(ev), Date.now, { instructions: '中古ブランドバッグの買取フォーム' })
 startSpeech({ onFinal: (t) => engine.final(t), onInterim: () => {}, onStatus: () => {}, onFatal: () => {} })
 ```
-サーバ側は `pipeline(input, (s, q) => callJev(KEY, s, q))` を `/route` に置く（例は `examples/web-app/server/`）。
+サーバ側は `jev-speakfill/server` の `createRouteHandler({ apiKey, config, onTrace, cors })` を `/route` に置く。`(req: Request) => Promise<Response>` なので Hono / Workers / Cloud Run / Node の fetch adapter にそのまま載る（例は `examples/web-app/server/`）。不正な入力は 400、Jev の失敗は 502。
 
 ## 自分のアプリに組み込む（React / iOS）
 - **モデルモード**（推奨）: アプリのフォーム定義から `Field[]`（`id` = state のキー、`label`、`kind`、`options`、`type`、`constraints`）を作り、発話を `POST /route` に送り、`RouteResult.apply` を state に入れる。DOM を触らない。動く例が `examples/react-app/`（Vite + React、`useSpeakfill` フック 50 行。npm の `jev-speakfill` を install して使っている）
@@ -115,7 +117,7 @@ startSpeech({ onFinal: (t) => engine.final(t), onInterim: () => {}, onStatus: ()
 | `npm run build` | 拡張・widget・サーバを `dist/` に。`examples/form.html` も生成 |
 | `npm run dev` | build + サーバ起動 |
 | `npm run build:lib` | npm パッケージ用のビルド（`dist/lib`。`npm publish` 前に自動実行） |
-| `npm run eval` | `tests/fixtures/ja.json` の発話を実 API に流し、段階ごとの結果を `docs/eval/latest.md` に書く |
+| `npm run eval` | `tests/fixtures/ja.json` の発話を実 API に流し、段階ごとの結果を `docs/eval/latest.md` に書く。`EVAL_BIG=1` でブランドを 1200 件に水増し、`EVAL_OUT` で出力先を変える |
 
 `.env` は `.env.example` をコピー（eval とサーバ専用）。
 
