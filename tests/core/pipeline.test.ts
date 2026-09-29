@@ -9,7 +9,7 @@ const fields: Field[] = [
 const answer = (choice: string, confidence = 0.9): Answer => ({ type: 'choice', choice, probabilities: { [choice]: confidence }, confidence })
 const ask: JevAsk = async (_s, q) => {
   const out: Record<string, Answer> = {}
-  for (const id of Object.keys(q)) out[id] = id === 'c0' ? answer('color') : id === 'c1' ? answer('tel') : id === 'c0_color' ? answer('赤') : answer('none')
+  for (const id of Object.keys(q)) out[id] = id === 'c0' ? answer('color') : id === 'c1' ? answer('tel') : id === 'c0_opt' ? answer('color=赤') : answer('none')
   return { answers: out, usage: { input_tokens: 100, output_tokens: 20 }, model: 'jev-latest' }
 }
 const fresh = () => ({ hint: undefined, last: undefined })
@@ -46,7 +46,7 @@ test('trace に文字起こしから配置までの全段階が残る', async ()
   expect(t.jev).toHaveLength(2)                                   // 欄選択 + 選択肢
   expect(Object.keys(t.jev[0].questions)).toEqual(['c0', 'c1'])
   expect(t.jev[0].answers.c0.choice).toBe('color')
-  expect(t.jev[1].answers.c0_color.choice).toBe('赤')
+  expect(t.jev[1].answers.c0_opt.choice).toBe('color=赤')
   expect(t.gate.apply.map((p) => p.value)).toEqual(['赤'])
   expect(t.gate.pending.map((p) => p.value)).toEqual(['080'])
   expect(t.jev[0].usage).toEqual({ input_tokens: 100, output_tokens: 20 })   // 往復ごとの usage が残る

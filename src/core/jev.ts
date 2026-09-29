@@ -4,8 +4,8 @@ import { DEFAULT_CONFIG, fill, matchesAny, type SpeakfillConfig } from './config
 
 export const NONE = 'none'
 
-// 1 往復目: chunk ごとに「どの欄か」。2 往復目: 選ばれた欄が選択肢を持つときだけ「どの選択肢か」。
-// 全欄分の option 質問を投機的に同梱すると入力トークンが 欄数×chunk 数 で膨らむ（実測 1.4 倍、latency 差は ~150ms）ので分ける
+// 1 往復目: chunk ごとに「どの欄か」。選択肢は例を数件添えるだけにし、全件は載せない（chunk 数だけ繰り返されて入力が膨らむ）。
+// 2 往復目: 1 往復目の確率上位の欄の選択肢を「欄 = 選択肢」に平らに並べ、1 つ選ばせる（欄の迷いも選択肢の迷いも同じ土俵で比べる）
 export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<string, string>, recent: string[] = [], cfg: SpeakfillConfig = DEFAULT_CONFIG) {
   const questions: Record<string, Question> = {}
   chunks.forEach((chunk, i) => {
@@ -13,7 +13,7 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
     for (const f of fields) {
       const type = effectiveType(f, cfg)
       const unit = cfg.unitByLabel.find((u) => matchesAny(u.labels, f.label))?.unit
-      criteria[f.id] = `${f.label || '(ラベルなし)'} (${f.kind}${f.options ? ': ' + f.options.join('/') : type ? ': ' + type + (cfg.typeHints[type] ?? '') : ''}${unit ? `、単位: ${unit}` : ''})`
+      criteria[f.id] = `${f.label || '(ラベルなし)'} (${f.kind}${f.options ? ': ' + examples(f, cfg) : type ? ': ' + type + (cfg.typeHints[type] ?? '') : ''}${unit ? `、単位: ${unit}` : ''})`
     }
     // 短い非数値の chunk は「欄名を言っているだけ」の可能性がある（STT の誤変換込み: LINE=ライン、尾行=備考）。
     // 値としての欄に加えて「欄名として」の選択肢を出し、Jev に判定させる
@@ -33,7 +33,7 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
     }
   })
   const state = {
-    fields: fields.map(({ id, label, kind, options }) => ({ id, label, kind, options })),
+    fields: fields.map(({ id, label, kind }) => ({ id, label, kind })),
     chunks,
     filled,
     recent,
@@ -41,13 +41,27 @@ export function buildQuestions(fields: Field[], chunks: Chunk[], filled: Record<
   return { state, questions }
 }
 
-export function optionQuestion(i: number, f: Field, cfg: SpeakfillConfig = DEFAULT_CONFIG): Question {
+const examples = (f: Field, cfg: SpeakfillConfig) => {
+  const opts = f.options ?? []
+  return opts.length <= cfg.exampleOptions ? opts.join('/') : `例 ${opts.slice(0, cfg.exampleOptions).join('/')} ほか全 ${opts.length} 件`
+}
+
+// 2 往復目の選択肢 id。選択肢を持つ欄は `<欄id>=<選択肢>`、持たない欄は欄 id のまま
+export const optionKey = (f: Field, option?: string) => (option === undefined ? f.id : `${f.id}=${option}`)
+
+// Jev の Choice は 1 問あたり 255 択まで。none の分を空ける。これを超える欄はホストが候補を絞って渡す（読み・検索語などドメインの知識が要るため）
+export const MAX_CHOICES = 254
+
+export function optionQuestion(i: number, candidates: Field[], cfg: SpeakfillConfig = DEFAULT_CONFIG): Question {
   const oc: Record<string, string> = {}
-  for (const o of f.options ?? []) oc[o] = o
-  oc[NONE] = 'どの選択肢にも当たらない'
+  for (const f of candidates) {
+    if (f.options?.length) for (const o of f.options) oc[optionKey(f, o)] = `${f.label} = ${o}`
+    else oc[optionKey(f)] = `${f.label}（発話をそのまま入れる${effectiveType(f, cfg) ? `。${effectiveType(f, cfg)}` : ''}）`
+  }
+  oc[NONE] = 'どれにも当たらない'
   return {
     type: 'choice',
-    instructions: fill(cfg.prompts.option, { i: String(i), label: f.label, sttNote: cfg.sttNote, instructions: cfg.instructions }),
+    instructions: fill(cfg.prompts.option, { i: String(i), label: candidates.map((f) => f.label).join('・'), sttNote: cfg.sttNote, instructions: cfg.instructions }),
     criteria: oc,
   }
 }

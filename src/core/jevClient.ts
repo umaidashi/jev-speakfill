@@ -9,7 +9,10 @@ export async function callJev(
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, state, questions }),
   })
-  if (!res.ok) throw new Error(`jev ${res.status}`)
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 200)
+    throw Object.assign(new Error(`jev ${res.status}${detail ? `: ${detail}` : ''}`), { status: res.status })
+  }
   const json = (await res.json()) as JevResponse
   return { answers: json.answers, usage: json.usage, model: json.model }
 }

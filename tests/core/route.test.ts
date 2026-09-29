@@ -1,5 +1,5 @@
 import { route } from '../../src/core/route'
-import type { Answer, Field, JevAsk } from '../../src/core/types'
+import type { Answer, Field, JevAsk, Question } from '../../src/core/types'
 
 const fields: Field[] = [
   { id: 'name', label: '氏名', kind: 'text' },
@@ -31,18 +31,18 @@ test('text 欄の値は route では触らない（正規化は gate の coerce 
 })
 
 test('select 欄は option 質問の答えを値にする', async () => {
-  const r = await route(fields, [{ text: '東京' }], {}, fakeAsk({ c0: answer('pref'), c0_pref: answer('東京都') }))
+  const r = await route(fields, [{ text: '東京' }], {}, fakeAsk({ c0: answer('pref'), c0_opt: answer('pref=東京都') }))
   expect(r[0].value).toBe('東京都')
 })
 
 test('同音異義: chunk「川」でも option 質問が「革」を返せばそれを書く（Review Focus 6）', async () => {
   const f: Field[] = [...fields, { id: 'material', label: '素材', kind: 'select', options: ['革', '布', '金属'] }]
-  const r = await route(f, [{ text: '川' }], {}, fakeAsk({ c0: answer('material'), c0_material: answer('革', 0.7) }))
+  const r = await route(f, [{ text: '川' }], {}, fakeAsk({ c0: answer('material'), c0_opt: answer('material=革', 0.7) }))
   expect(r[0]).toMatchObject({ fieldId: 'material', value: '革', chunk: '川' })
 })
 
 test('select 欄で option が none なら未配置', async () => {
-  const r = await route(fields, [{ text: '北海道' }], {}, fakeAsk({ c0: answer('pref'), c0_pref: answer('none') }))
+  const r = await route(fields, [{ text: '北海道' }], {}, fakeAsk({ c0: answer('pref'), c0_opt: answer('none') }))
   expect(r).toEqual([])
 })
 
@@ -75,11 +75,11 @@ test('2 往復: 1 回目は欄選択だけ、2 回目は選ばれた選択肢欄
   const ask: JevAsk = async (_s, questions) => {
     calls.push(Object.keys(questions))
     const out: Record<string, Answer> = {}
-    for (const id of Object.keys(questions)) out[id] = id === 'c0' ? answer('name') : id === 'c1' ? answer('pref') : id === 'c1_pref' ? answer('大阪府') : answer('none')
+    for (const id of Object.keys(questions)) out[id] = id === 'c0' ? answer('name') : id === 'c1' ? answer('pref') : id === 'c1_opt' ? answer('pref=大阪府') : answer('none')
     return { answers: out }
   }
   const r = await route(fields, [{ text: '山田' }, { text: '大阪' }], {}, ask)
-  expect(calls).toEqual([['c0', 'c1'], ['c1_pref']])
+  expect(calls).toEqual([['c0', 'c1'], ['c1_opt']])
   expect(r.map((p) => p.value)).toEqual(['山田', '大阪府'])
 })
 
@@ -93,7 +93,7 @@ test('選択肢欄が選ばれなければ 2 回目は呼ばない', async () =>
 test('隣接 chunk が同じ選択肢欄に向いたら confidence の高い方だけ残す（ほぼ|新品 → 未使用に近い）', async () => {
   const f: Field[] = [{ id: 'cond', label: '状態', kind: 'select', options: ['新品', '未使用に近い'] }]
   const r = await route(f, [{ text: 'ほぼ' }, { text: '新品', glue: true }], {}, fakeAsk({
-    c0: answer('cond', 0.93), c1: answer('cond', 0.97), c0_cond: answer('未使用に近い', 0.61), c1_cond: answer('新品', 0.5),
+    c0: answer('cond', 0.93), c1: answer('cond', 0.97), c0_opt: answer('cond=未使用に近い', 0.61), c1_opt: answer('cond=新品', 0.5),
   }))
   expect(r).toEqual([{ fieldId: 'cond', value: '未使用に近い', chunk: 'ほぼ', confidence: 0.93 }])
 })
@@ -114,7 +114,7 @@ test('1 つの発話断片の全単語が同じ自由記述欄に向いたら、
 test('optionThreshold 未満の選択肢は採らない', async () => {
   const { resolveConfig } = await import('../../src/core/config')
   const cfg = resolveConfig({ optionThreshold: 0.8 })
-  const r = await route(fields, [{ text: '東京' }], {}, fakeAsk({ c0: answer('pref'), c0_pref: answer('東京都', 0.5) }), [], cfg)
+  const r = await route(fields, [{ text: '東京' }], {}, fakeAsk({ c0: answer('pref'), c0_opt: answer('pref=東京都', 0.5) }), [], cfg)
   expect(r).toEqual([])
 })
 
@@ -164,4 +164,73 @@ test('断片に欄名が含まれていた（hint）とき、原文をまとめ�
   const src = '備考欄は底面に傷あり'
   const r = await route(f, [{ text: '底面', hint: '備考', src, srcN: 2 }, { text: '傷あり', hint: '備考', glue: true, src, srcN: 2 }], {}, fakeAsk({ c0: answer('note'), c1: answer('note') }))
   expect(r).toEqual([{ fieldId: 'note', value: '底面に傷あり', chunk: '底面に傷あり', confidence: 0.9 }])
+})
+
+test('2 往復目は 1 往復目の確率上位の欄を平らに並べ、欄の選び直しもできる', async () => {
+  const f: Field[] = [
+    { id: 'model', label: 'モデル', kind: 'text' },
+    { id: 'material', label: '素材', kind: 'select', options: ['革', '布'] },
+  ]
+  const asked: Record<string, Question>[] = []
+  const ask: JevAsk = async (_s, q) => {
+    asked.push(q)
+    return { answers: Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0'
+      ? { type: 'choice' as const, choice: 'material', confidence: 0.6, probabilities: { material: 0.6, model: 0.4 } }
+      : answer('model', 0.9)])) }
+  }
+  const r = await route(f, [{ text: 'ネバーフル' }], {}, ask)
+  expect(Object.keys(asked[1].c0_opt.criteria)).toEqual(['material=革', 'material=布', 'model', 'none'])
+  expect(r.map((p) => [p.fieldId, p.value])).toEqual([['model', 'ネバーフル']])
+})
+
+test('1 往復目で自由記述の欄を確信して選んだら、2 往復目には回さない', async () => {
+  const calls: number[] = []
+  const f: Field[] = [
+    { id: 'model', label: 'モデル', kind: 'text' },
+    { id: 'material', label: '素材', kind: 'select', options: ['革'] },
+  ]
+  const ask: JevAsk = async (_s, q) => (calls.push(1), { answers: Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0'
+    ? { type: 'choice' as const, choice: 'model', confidence: 0.64, probabilities: { model: 0.64, material: 0.3 } }
+    : answer('none', 0.24)])) })
+  const r = await route(f, [{ text: 'モノグラム' }], {}, ask)
+  // 2 往復目の答え（none）には左右されない
+  expect(r.map((p) => [p.fieldId, p.value])).toEqual([['model', 'モノグラム']])
+  expect(calls).toHaveLength(1)
+})
+
+test('選択肢が上限を超える欄はエラーにする（候補を絞るのはホストの責務）', async () => {
+  const f: Field[] = [{ id: 'brand', label: 'ブランド', kind: 'select', options: Array.from({ length: 300 }, (_, i) => `B${i}`) }]
+  await expect(route(f, [{ text: 'B0' }], {}, fakeAsk({}))).rejects.toThrow('ブランド')
+})
+
+test('2 往復目の候補は選択肢の合計が上限に収まる分だけ、確率の高い順に入れる', async () => {
+  const f: Field[] = [
+    { id: 'a', label: 'A', kind: 'select', options: Array.from({ length: 200 }, (_, i) => `a${i}`) },
+    { id: 'b', label: 'B', kind: 'select', options: Array.from({ length: 100 }, (_, i) => `b${i}`) },
+    { id: 'c', label: 'C', kind: 'text' },
+  ]
+  const asked: Record<string, Question>[] = []
+  const ask: JevAsk = async (_s, q) => {
+    asked.push(q)
+    return { answers: Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0'
+      ? { type: 'choice' as const, choice: 'a', confidence: 0.6, probabilities: { a: 0.6, b: 0.3, c: 0.1 } }
+      : answer('a=a1', 0.9)])) }
+  }
+  await route(f, [{ text: 'x' }], {}, ask)
+  const keys = Object.keys(asked[1].c0_opt.criteria)
+  expect(keys.length).toBeLessThanOrEqual(255)
+  expect(keys.some((k) => k.startsWith('b='))).toBe(false)   // B を入れると 300 件になるので入れない
+  expect(keys).toContain('c')
+})
+
+test('1 往復目で閾値に届かない chunk は 2 往復目で候補と比べ直す', async () => {
+  const f: Field[] = [
+    { id: 'model', label: 'モデル', kind: 'text' },
+    { id: 'material', label: '素材', kind: 'select', options: ['革'] },
+  ]
+  const ask: JevAsk = async (_s, q) => ({ answers: Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0'
+    ? { type: 'choice' as const, choice: 'model', confidence: 0.45, probabilities: { model: 0.45, material: 0.2, none: 0.35 } }
+    : answer('model', 0.8)])) })
+  const r = await route(f, [{ text: 'モノグラム' }], {}, ask)
+  expect(r).toEqual([{ fieldId: 'model', value: 'モノグラム', chunk: 'モノグラム', confidence: 0.8 }])
 })

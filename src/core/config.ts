@@ -19,6 +19,9 @@ export type SpeakfillConfig = {
   negations: string[]                               // 含んでいたら chunk を割らない（否定・除外）
   threshold: number                                 // 1 往復目（欄選択）の confidence 下限
   optionThreshold: number                           // 2 往復目（選択肢）の confidence 下限
+  topFields: number                                 // 2 往復目で比べ直す欄の数（1 往復目の確率上位）
+  topFieldMin: number                               // 2 往復目の候補に入れる欄の確率の下限
+  exampleOptions: number                            // 1 往復目の criteria に添える選択肢の例の数（全件は 2 往復目だけに出す）
   recentCount: number                               // Jev に渡す直前の発話の数
   dateCandidateDays: number                         // 日付の候補選択: 今日 ± この日数
   dateCandidateYears: number                        // 日付の候補選択: 骨格 M月D日 の年 ± この年数
@@ -31,7 +34,7 @@ export type SpeakfillConfig = {
   instructions: string                              // ドメインの追加説明（自由記述。instructions 末尾に付く）
   prompts: {                                        // Jev への質問文。全文を差し替えられる（言語パック化の前段）
     field: string                                   //   欄選択。{i} {hint} {sttNote} {instructions}
-    option: string                                  //   選択肢選択。{i} {label} {sttNote} {instructions}
+    option: string                                  //   候補の欄・選択肢から 1 つ。{i} {label}（候補欄のラベル）{sttNote} {instructions}
     date: string                                    //   日付の候補選択。{chunk} {label} {today} {sttNote}
   }
 }
@@ -58,6 +61,9 @@ export const DEFAULT_CONFIG: SpeakfillConfig = {
   negations: ['ない', 'なく', '以外', 'じゃな', 'ではな'],
   threshold: 0.5,
   optionThreshold: 0.3,
+  topFields: 3,
+  topFieldMin: 0.05,
+  exampleOptions: 5,
   recentCount: 3,
   dateCandidateDays: 14,
   dateCandidateYears: 2,
@@ -81,7 +87,9 @@ export const DEFAULT_CONFIG: SpeakfillConfig = {
       '既に `filled` にある欄は、値の種類が明らかに一致するときだけ選べ。' +
       '`recent` は直前の発話（古い順）。同じ発話内の他の chunk と recent から、この値が何の続きかを読み取れ。' +
       'chunk が値ではなく欄名そのもの（読みが同じ誤変換を含む）なら、その欄を選べ。{instructions}',
-    option: '`chunks[{i}].text` が欄「{label}」の値だとしたら、どの選択肢を指しているか。{sttNote}{instructions}',
+    option:
+      '`chunks[{i}].text` に最も合う入力を 1 つ選べ。候補は「欄 = 選択肢」か、発話をそのまま入れる欄。' +
+      '読みと意味で判断せよ。{sttNote}{instructions}',
     date: '発話「{chunk}」は欄「{label}」の日付としてどれを指すか。今日は {today}。{sttNote}',
   },
 }
