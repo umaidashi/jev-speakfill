@@ -198,17 +198,29 @@ test('1 往復目で自由記述の欄を確信して選んだら、2 往復目�
   expect(calls).toHaveLength(1)
 })
 
-test('選択肢が 250 件を超える欄は質問を分けて聞き、各組の勝者から選び直す', async () => {
-  const f: Field[] = [{ id: 'brand', label: 'ブランド', kind: 'select', options: Array.from({ length: 600 }, (_, i) => `B${i}`) }]
-  const asked: string[][] = []
+test('選択肢が上限を超える欄はエラーにする（候補を絞るのはホストの責務）', async () => {
+  const f: Field[] = [{ id: 'brand', label: 'ブランド', kind: 'select', options: Array.from({ length: 300 }, (_, i) => `B${i}`) }]
+  await expect(route(f, [{ text: 'B0' }], {}, fakeAsk({}))).rejects.toThrow('ブランド')
+})
+
+test('2 往復目の候補は選択肢の合計が上限に収まる分だけ、確率の高い順に入れる', async () => {
+  const f: Field[] = [
+    { id: 'a', label: 'A', kind: 'select', options: Array.from({ length: 200 }, (_, i) => `a${i}`) },
+    { id: 'b', label: 'B', kind: 'select', options: Array.from({ length: 100 }, (_, i) => `b${i}`) },
+    { id: 'c', label: 'C', kind: 'text' },
+  ]
+  const asked: Record<string, Question>[] = []
   const ask: JevAsk = async (_s, q) => {
-    asked.push(Object.keys(q))
-    for (const x of Object.values(q)) expect(Object.keys(x.criteria).length).toBeLessThanOrEqual(255)
-    return { answers: Object.fromEntries(Object.entries(q).map(([id, x]) => [id, id === 'c0' ? answer('brand') : answer(Object.keys(x.criteria)[0], 0.8)])) }
+    asked.push(q)
+    return { answers: Object.fromEntries(Object.keys(q).map((id) => [id, id === 'c0'
+      ? { type: 'choice' as const, choice: 'a', confidence: 0.6, probabilities: { a: 0.6, b: 0.3, c: 0.1 } }
+      : answer('a=a1', 0.9)])) }
   }
-  const r = await route(f, [{ text: 'B0' }], {}, ask)
-  expect(asked).toEqual([['c0'], ['c0_opt', 'c0_opt1', 'c0_opt2'], ['c0_opt']])
-  expect(r.map((p) => p.value)).toEqual(['B0'])
+  await route(f, [{ text: 'x' }], {}, ask)
+  const keys = Object.keys(asked[1].c0_opt.criteria)
+  expect(keys.length).toBeLessThanOrEqual(255)
+  expect(keys.some((k) => k.startsWith('b='))).toBe(false)   // B を入れると 300 件になるので入れない
+  expect(keys).toContain('c')
 })
 
 test('1 往復目で閾値に届かない chunk は 2 往復目で候補と比べ直す', async () => {

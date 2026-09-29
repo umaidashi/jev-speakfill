@@ -1,4 +1,4 @@
-import { buildQuestions, finalQuestion, NONE, optionKey, optionQuestions } from './jev'
+import { buildQuestions, MAX_CHOICES, NONE, optionKey, optionQuestion } from './jev'
 import { DEFAULT_CONFIG, type SpeakfillConfig } from './config'
 import { effectiveType } from './format'
 import type { Chunk, Field, JevAsk, Placement, Question } from './types'
@@ -14,8 +14,12 @@ function stripLabel(src: string, hint?: string): string {
 // route が本体以外に返す情報: 欄名と判定された chunk の位置と、発話末尾の欄名（次の発話のヒント）
 export type RouteMeta = { pendingHint?: string; labelAt: number[] }
 
+const choices = (f: Field) => f.options?.length || 1
+
 export async function route(fields: Field[], chunks: Chunk[], filled: Record<string, string>, ask: JevAsk, recent: string[] = [], cfg: SpeakfillConfig = DEFAULT_CONFIG, meta: RouteMeta = { labelAt: [] }): Promise<Placement[]> {
   if (chunks.length === 0 || fields.length === 0) return []
+  const tooMany = fields.find((f) => (f.options?.length ?? 0) > MAX_CHOICES)
+  if (tooMany) throw new Error(`欄「${tooMany.label}」の選択肢が ${tooMany.options!.length} 件ある。Jev は 1 問 ${MAX_CHOICES + 1} 択までなので、発話に近い候補に絞って渡すこと`)
   const { state, questions } = buildQuestions(fields, chunks, filled, recent, cfg)
   const { answers } = await ask(state, questions)
   // Jev が「欄名を言っているだけ」と判定した chunk: 続く chunk（同じ断片の残り）をその欄の値にする。末尾なら次の発話のヒント
@@ -50,7 +54,12 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
     if (forced.has(i)) return [f]
     const probs = answers[`c${i}`]?.probabilities ?? {}
     const top = fields.filter((x) => (probs[x.id] ?? 0) >= cfg.topFieldMin).sort((a, b) => (probs[b.id] ?? 0) - (probs[a.id] ?? 0)).slice(0, cfg.topFields)
-    return top.some((x) => x.id === f.id) ? top : [f, ...top.slice(0, cfg.topFields - 1)]
+    const ranked = top.some((x) => x.id === f.id) ? [f, ...top.filter((x) => x.id !== f.id)] : [f, ...top.slice(0, cfg.topFields - 1)]
+    // 候補の選択肢の合計が上限を超えないよう、確率の高い順に収まる分だけ入れる（1 往復目で選んだ欄は必ず入る）
+    const out: Field[] = []
+    let n = 0
+    for (const x of ranked) if (n + choices(x) <= MAX_CHOICES) { out.push(x); n += choices(x) }
+    return out
   }
   const optQ: Record<string, Question> = {}
   const candidates = new Map<number, Field[]>()
@@ -60,26 +69,13 @@ export async function route(fields: Field[], chunks: Chunk[], filled: Record<str
     // 自由記述の欄を確信して選んだ chunk は 2 往復目に回さない（選択肢の大きな欄と並べると答えが薄まる）
     if (!f.options?.length && !unsure.has(i)) return
     candidates.set(i, cs)
-    optionQuestions(i, cs, cfg).forEach((q, b) => { optQ[b === 0 ? `c${i}_opt` : `c${i}_opt${b}`] = q })
+    optQ[`c${i}_opt`] = optionQuestion(i, cs, cfg)
   })
   const optAnswers = Object.keys(optQ).length ? (await ask(state, optQ)).answers : {}
-  // 250 件を超えて分割した chunk は、各組の勝者から 3 往復目で 1 つ選び直す
-  const finalQ: Record<string, Question> = {}
-  candidates.forEach((cs, i) => {
-    const winners = Object.entries(optAnswers)
-      .filter(([k, a]) => k.startsWith(`c${i}_opt`) && a.choice !== NONE)
-      .map(([, a]) => a.choice)
-    if (Object.keys(optQ).filter((k) => k.startsWith(`c${i}_opt`)).length > 1 && winners.length > 1) finalQ[`c${i}_opt`] = finalQuestion(i, winners, cs, cfg)
-  })
-  const finalAnswers = Object.keys(finalQ).length ? (await ask(state, finalQ)).answers : {}
   // 2 往復目の答えで欄と選択肢を確定する。`<欄id>=<選択肢>` か欄 id
   const picked = new Map<number, { option?: string; confidence: number }>()
   candidates.forEach((cs, i) => {
-    // 3 往復目で選び直したらその答え。分割しなかった、または勝者が 1 つだったときは none でない組の答えのうち最も確かなもの
-    const opt = finalAnswers[`c${i}_opt`] ?? Object.entries(optAnswers)
-      .filter(([k, a]) => k.startsWith(`c${i}_opt`) && a.choice !== NONE)
-      .map(([, a]) => a)
-      .sort((a, b) => b.confidence - a.confidence)[0]
+    const opt = optAnswers[`c${i}_opt`]
     if (!opt || opt.choice === NONE || opt.confidence < cfg.optionThreshold) { chosen[i] = undefined; return }
     const f = cs.find((x) => opt.choice === optionKey(x) || opt.choice.startsWith(`${x.id}=`))
     if (!f) { chosen[i] = undefined; return }

@@ -12,10 +12,11 @@ const NOW = Date.UTC(2026, 8, 25, 3)   // 日付ケースを固定するため 2
 const fx = JSON.parse(readFileSync('tests/fixtures/ja.json', 'utf8')) as {
   fields: Field[]; cases: { text: string; expect: Record<string, string> }[]
 }
-// EVAL_BIG=1: ブランドの選択肢を 1200 件に水増しして、選択肢の多い欄での挙動（入力の大きさ・API の上限）を見る
-if (process.env.EVAL_BIG === '1') {
+// EVAL_BIG=<件数>: ブランドの選択肢をその件数に水増しして、選択肢の多い欄での入力の大きさを見る（上限は 254 件）
+const big = Number(process.env.EVAL_BIG ?? 0)
+if (big > 0) {
   const brand = fx.fields.find((f) => f.id === 'brand')
-  if (brand?.options) brand.options = [...brand.options, ...Array.from({ length: 1200 - brand.options.length }, (_, i) => `Brand ${i}`)]
+  if (brand?.options) brand.options = [...brand.options, ...Array.from({ length: big - brand.options.length }, (_, i) => `Brand ${i}`)]
 }
 const out = process.env.EVAL_OUT ?? 'docs/eval/latest.md'
 const label = (id: string) => fx.fields.find((f) => f.id === id)?.label ?? id

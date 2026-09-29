@@ -107,6 +107,7 @@ startSpeech({ onFinal: (t) => engine.final(t), onInterim: () => {}, onStatus: ()
 - **モデルモード**（推奨）: アプリのフォーム定義から `Field[]`（`id` = state のキー、`label`、`kind`、`options`、`type`、`constraints`）を作り、発話を `POST /route` に送り、`RouteResult.apply` を state に入れる。DOM を触らない。動く例が `examples/react-app/`（Vite + React、`useSpeakfill` フック 50 行。npm の `jev-speakfill` を install して使っている）
 - **DOM モード**: 既存ページに `widget.js` を後付け
 - iOS は `SFSpeechRecognizer` で文字起こし → `/route` を叩くだけ。コアを Swift に移植する必要はない
+- 選択肢が 255 件を超える欄（ブランド一覧など）は、`Host.route` で発話（`input.text`）に近い候補に絞ってから送る。Jev の Choice が 1 問 255 択までのため。コアはこれを超える欄を受け取るとエラーにする
 - 状態（`filled` / `ctx` / `recent` / Undo）の持ち方は `src/core/engine.ts` を参照。ホストは `fields / apply / restore / route` の 4 関数を渡す
 
 ## 開発
@@ -117,7 +118,7 @@ startSpeech({ onFinal: (t) => engine.final(t), onInterim: () => {}, onStatus: ()
 | `npm run build` | 拡張・widget・サーバを `dist/` に。`examples/form.html` も生成 |
 | `npm run dev` | build + サーバ起動 |
 | `npm run build:lib` | npm パッケージ用のビルド（`dist/lib`。`npm publish` 前に自動実行） |
-| `npm run eval` | `tests/fixtures/ja.json` の発話を実 API に流し、段階ごとの結果を `docs/eval/latest.md` に書く。`EVAL_BIG=1` でブランドを 1200 件に水増し、`EVAL_OUT` で出力先を変える |
+| `npm run eval` | `tests/fixtures/ja.json` の発話を実 API に流し、段階ごとの結果を `docs/eval/latest.md` に書く。`EVAL_BIG=240` でブランドを 240 件に水増し、`EVAL_OUT` で出力先を変える |
 
 `.env` は `.env.example` をコピー（eval とサーバ専用）。
 

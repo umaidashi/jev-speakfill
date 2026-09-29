@@ -49,29 +49,19 @@ const examples = (f: Field, cfg: SpeakfillConfig) => {
 // 2 往復目の選択肢 id。選択肢を持つ欄は `<欄id>=<選択肢>`、持たない欄は欄 id のまま
 export const optionKey = (f: Field, option?: string) => (option === undefined ? f.id : `${f.id}=${option}`)
 
-// Jev の Choice は 1 問あたり 255 択まで。none の分を空けて分割する
-export const MAX_CHOICES = 250
+// Jev の Choice は 1 問あたり 255 択まで。none の分を空ける。これを超える欄はホストが候補を絞って渡す（読み・検索語などドメインの知識が要るため）
+export const MAX_CHOICES = 254
 
-// 候補欄を平らに並べた選択肢。250 件を超えたら複数の質問に分ける（同じ往復で聞ける）
-export function optionQuestions(i: number, candidates: Field[], cfg: SpeakfillConfig = DEFAULT_CONFIG): Question[] {
-  const entries: [string, string][] = []
+export function optionQuestion(i: number, candidates: Field[], cfg: SpeakfillConfig = DEFAULT_CONFIG): Question {
+  const oc: Record<string, string> = {}
   for (const f of candidates) {
-    if (f.options?.length) for (const o of f.options) entries.push([optionKey(f, o), `${f.label} = ${o}`])
-    else entries.push([optionKey(f), `${f.label}（発話をそのまま入れる${effectiveType(f, cfg) ? `。${effectiveType(f, cfg)}` : ''}）`])
+    if (f.options?.length) for (const o of f.options) oc[optionKey(f, o)] = `${f.label} = ${o}`
+    else oc[optionKey(f)] = `${f.label}（発話をそのまま入れる${effectiveType(f, cfg) ? `。${effectiveType(f, cfg)}` : ''}）`
   }
-  const instructions = fill(cfg.prompts.option, { i: String(i), label: candidates.map((f) => f.label).join('・'), sttNote: cfg.sttNote, instructions: cfg.instructions })
-  const out: Question[] = []
-  for (let k = 0; k < entries.length; k += MAX_CHOICES) {
-    out.push({ type: 'choice', instructions, criteria: { ...Object.fromEntries(entries.slice(k, k + MAX_CHOICES)), [NONE]: 'どれにも当たらない' } })
+  oc[NONE] = 'どれにも当たらない'
+  return {
+    type: 'choice',
+    instructions: fill(cfg.prompts.option, { i: String(i), label: candidates.map((f) => f.label).join('・'), sttNote: cfg.sttNote, instructions: cfg.instructions }),
+    criteria: oc,
   }
-  return out
 }
-
-// 分割して聞いた各組の勝者から 1 つを選び直す質問
-export function finalQuestion(i: number, winners: string[], candidates: Field[], cfg: SpeakfillConfig = DEFAULT_CONFIG): Question {
-  const all = optionQuestions(i, candidates, cfg).flatMap((q) => Object.entries(q.criteria))
-  const byKey = new Map(all)
-  return { type: 'choice', instructions: optionQuestions(i, candidates, cfg)[0].instructions, criteria: { ...Object.fromEntries(winners.map((w) => [w, byKey.get(w) ?? w])), [NONE]: 'どれにも当たらない' } }
-}
-
-export const optionQuestion = (i: number, candidates: Field[], cfg: SpeakfillConfig = DEFAULT_CONFIG): Question => optionQuestions(i, candidates, cfg)[0]
